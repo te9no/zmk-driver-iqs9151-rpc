@@ -1,10 +1,10 @@
 ﻿# zmk-driver-iqs9151
 
-私が自作したIQS9151トラックパッドモジュールをZMKで使用するための専用ドライバです。  
-トラックパッドによるカーソル移動/タップ/スクロール/ピンチインアウトや複数指ジェスチャなどの操作を扱えるようになります。  
+私が自作したIQS9151トラックパッドモジュールをZMKで使用するための専用ドライバです。
+トラックパッドによるカーソル移動/タップ/スクロール/ピンチインアウトや複数指ジェスチャなどの操作を扱えるようになります。
 また、ZMKからトラックパッドの動作設定を行いやすくする為の拡張機能がいくつか追加されます。
 
-トラックパッドモジュール本体は[Booth（準備中）](https://shininet.booth.pm/)より入手可能です。  
+トラックパッドモジュール本体は[Booth（準備中）](https://shininet.booth.pm/)より入手可能です。
 
 <img width="600"  alt="image" src="https://github.com/user-attachments/assets/76c1e221-bab2-4d7d-9250-408a9b767e39" />
 
@@ -17,11 +17,12 @@
 - 滑らかな慣性カーソル/スクロール対応
 - ZMKのキーマップ連携（レイヤーごとに動作の割り当て可能）
 - カーソルやスクロールの速度をリアルタイムに調整可能（電源OFFで設定が消えない）
+- DYA Studio / ZMK Studio Custom RPC 経由でIQS9151パラメータをWebUIから調整可能
 
 
 ## クイックスタート
 
-ここでは最小構成での導入手順を示します。  
+ここでは最小構成での導入手順を示します。
 前提となるZMKの基本構成・ビルド手順は本ドキュメントでは取り扱いません。
 
 ### 1. `west.yml` にモジュールを追加
@@ -31,8 +32,8 @@ manifest:
   remotes:
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
-    - name: ShiniNet                                #<---add this
-      url-base: https://github.com/ShiniNet         #<---add this
+    - name: te9no                                   #<---add this
+      url-base: https://github.com/te9no            #<---add this
 
   projects:
     - name: zmk
@@ -40,9 +41,10 @@ manifest:
       revision: v0.3.0
       import: app/west.yml
 
-    - name: zmk-driver-iqs9151                      #<---add this
-      remote: ShiniNet                              #<---add this
+    - name: zmk-driver-iqs9151-rpc                  #<---add this
+      remote: te9no                                 #<---add this
       revision: main                                #<---add this
+      path: modules/zmk-driver-iqs9151-rpc          #<---add this
 
   self:
     path: config
@@ -55,6 +57,8 @@ CONFIG_I2C=y
 CONFIG_ZMK_POINTING=y
 CONFIG_ZMK_POINTING_SMOOTH_SCROLLING=y
 CONFIG_INPUT_IQS9151=y
+CONFIG_ZMK_STUDIO=y
+CONFIG_INPUT_IQS9151_STUDIO_RPC=y
 ```
 
 必要に応じてトラックパッドの調整やジェスチャーON/OFFや閾値の設定を追加してください（[IQS9151 Driver Kconfig Reference](https://github.com/ShiniNet/zmk-driver-iqs9151/blob/main/documents/iqs9151_kconfig_reference.md)参照）。
@@ -92,7 +96,7 @@ CONFIG_INPUT_IQS9151=y
 - `3.3V` -> 3.3V電源
 - `GND` -> GND
 
-※SDA/SCL/DRのプルアップ抵抗はトラックパッド側に4.7KΩ実装済みなので不要。  
+※SDA/SCL/DRのプルアップ抵抗はトラックパッド側に4.7KΩ実装済みなので不要。
 
 <img width="1816" height="1334" alt="2026-03-27_16h37_57" src="https://github.com/user-attachments/assets/95b96d59-c3e7-432c-b41d-6f99093fd536" />
 
@@ -119,9 +123,60 @@ CONFIG_INPUT_IQS9151=y
 - 1～3本指タップによる左右中クリック、タップドラッグを確認
 - 3本指左右スワイプによるマウスボタン4-5(進む戻る)の出力を確認
 
-※更なる動作をキーマップから設定できるようにするにはコンフィグ及びDTSの設定が必要です。  
-  
-  
+※更なる動作をキーマップから設定できるようにするにはコンフィグ及びDTSの設定が必要です。
+
+## DYA Studio / WebUI
+
+このRPC版では、`zmk__iqs9151` Custom Studio RPCサブシステムを追加しています。
+Studio対応ファームウェアを接続すると、WebUIからIQS9151の一部パラメータを読み込み・変更・初期値へリセットできます。
+
+### 調整できる項目
+
+- X/Y resolution
+- ATI target count
+- XY dynamic filter bottom/top speed
+- XY dynamic filter bottom beta
+- 1F / 2F / 3F tap enable
+- horizontal / vertical scroll enable
+- pinch enable
+- cursor / scroll inertia enable
+
+### ファームウェア側の設定
+
+```conf
+CONFIG_ZMK_STUDIO=y
+CONFIG_INPUT_IQS9151_STUDIO_RPC=y
+```
+
+WebUI開発時のURLはファームウェア側で `http://localhost:5173` としてadvertiseされます。
+
+### WebUIの起動
+
+```sh
+cd .west-workspace/modules/zmk-driver-iqs9151-rpc/web
+npm install
+npm run dev
+```
+
+production build:
+
+```sh
+npm run build
+```
+
+`npm run build` は生成済みの `web/src/proto` を使います。
+`proto/zmk/iqs9151/iqs9151.proto` を変更した場合だけ、次を実行してください。
+
+```sh
+npm run generate
+```
+
+### デモモード
+
+WebUI上部の `Enable Demo` を押すと、実機に接続しなくても画面表示とパラメータ編集の動作を確認できます。
+デモモードではRPC通信は行わず、ブラウザ内のローカル状態だけを更新します。
+
+
 ## 応用編（ドキュメント整備中...）
 
 - ZMKキーマップと連携しKeymap EditorやZMK Studioからトラックパッドの動作を変更する
