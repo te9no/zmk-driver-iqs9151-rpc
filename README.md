@@ -1,10 +1,10 @@
-﻿# zmk-driver-iqs9151
+﻿# zmk-driver-iqs9151-rpc
 
-私が自作したIQS9151トラックパッドモジュールをZMKで使用するための専用ドライバです。
-トラックパッドによるカーソル移動/タップ/スクロール/ピンチインアウトや複数指ジェスチャなどの操作を扱えるようになります。
-また、ZMKからトラックパッドの動作設定を行いやすくする為の拡張機能がいくつか追加されます。
+ShiniNetさんが作成された [zmk-driver-iqs9151](https://github.com/ShiniNet/zmk-driver-iqs9151) をベースに、DYA Studio / ZMK Studio Custom RPC とWebUIを追加した派生版です。
+IQS9151トラックパッドモジュールをZMKで使用し、カーソル移動/タップ/スクロール/ピンチインアウトや複数指ジェスチャなどの操作を扱えるようになります。
+この派生版では、Studio対応ファームウェアからIQS9151パラメータを読み込み・変更・リセットできるWebUIを同梱しています。
 
-トラックパッドモジュール本体は[Booth（準備中）](https://shininet.booth.pm/)より入手可能です。
+トラックパッドモジュール本体はShiniNetさんの[Booth（準備中）](https://shininet.booth.pm/)より入手可能です。
 
 <img width="600"  alt="image" src="https://github.com/user-attachments/assets/76c1e221-bab2-4d7d-9250-408a9b767e39" />
 
@@ -17,7 +17,15 @@
 - 滑らかな慣性カーソル/スクロール対応
 - ZMKのキーマップ連携（レイヤーごとに動作の割り当て可能）
 - カーソルやスクロールの速度をリアルタイムに調整可能（電源OFFで設定が消えない）
-- DYA Studio / ZMK Studio Custom RPC 経由でIQS9151パラメータをWebUIから調整可能
+- DYA Studio / ZMK Studio Custom RPC経由でIQS9151パラメータをWebUIから調整可能
+
+## この派生版で追加したもの
+
+- `zmk__iqs9151` Custom Studio RPCサブシステム
+- IQS9151パラメータ調整用WebUI
+- WebUIデモモード
+- `get_config` / `set_config` / `reset_config` RPC
+- 一部パラメータのランタイム反映
 
 
 ## クイックスタート
@@ -61,7 +69,7 @@ CONFIG_ZMK_STUDIO=y
 CONFIG_INPUT_IQS9151_STUDIO_RPC=y
 ```
 
-必要に応じてトラックパッドの調整やジェスチャーON/OFFや閾値の設定を追加してください（[IQS9151 Driver Kconfig Reference](https://github.com/ShiniNet/zmk-driver-iqs9151/blob/main/documents/iqs9151_kconfig_reference.md)参照）。
+必要に応じてトラックパッドの調整やジェスチャーON/OFFや閾値の設定を追加してください（ShiniNetさんの[IQS9151 Driver Kconfig Reference](https://github.com/ShiniNet/zmk-driver-iqs9151/blob/main/documents/iqs9151_kconfig_reference.md)参照）。
 
 ### 3. DTS(overlay) にIQS9151ノードを追加（Xiao BLE且つセントラル側の例）
 
@@ -85,7 +93,7 @@ CONFIG_INPUT_IQS9151_STUDIO_RPC=y
     };
 };
 ```
-必要に応じてトラックパッドの速度調整や仮想キー連携を行う場合は、Behavior / Input Processor を追加してください（[Behavior / Input Processor Reference](https://github.com/ShiniNet/zmk-driver-iqs9151/blob/main/documents/behavior_input_processor_reference.md)参照）。
+必要に応じてトラックパッドの速度調整や仮想キー連携を行う場合は、Behavior / Input Processor を追加してください（ShiniNetさんの[Behavior / Input Processor Reference](https://github.com/ShiniNet/zmk-driver-iqs9151/blob/main/documents/behavior_input_processor_reference.md)参照）。
 
 ### 4. 物理配線
 
@@ -202,7 +210,9 @@ WebUI上部の `Enable Demo` を押すと、実機に接続しなくても画面
 
 ## 免責事項・その他
 
-- 本ドライバは継続開発中のため、意図しない動作の変更や不具合が発生する可能性があります。
+- 本リポジトリはShiniNetさんのIQS9151ドライバーをベースにした派生版です。
+- 本派生版は継続開発中のため、意図しない動作の変更や不具合が発生する可能性があります。
 - 意図しない更新を避けたい場合、ユーザー側でフォークしたバージョンを使用するなど対策してください。
 - 本ソフトウェアは現状有姿（as is）で提供され、利用・導入・運用は利用者の自己責任です。
-- ドライバ自体の不具合やその他の問題を見つけた場合、ISSUEを起こしてください。
+- RPC/WebUIまたは本派生版固有の問題は、このリポジトリへISSUEを起こしてください。
+- 元ドライバー由来と思われる問題は、ShiniNetさんのオリジナルリポジトリの状況も確認してください。
