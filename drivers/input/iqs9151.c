@@ -11,6 +11,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/util.h>
+#include <zmk/iqs9151_runtime.h>
 
 #include "iqs9151_init.h"
 #include "iqs9151_regs.h"
@@ -233,6 +234,46 @@ struct iqs9151_data {
     uint8_t finger_history_head;
     uint8_t finger_history_count;
 };
+
+static const struct iqs9151_runtime_config iqs9151_default_runtime_config = {
+    .resolution_x = CONFIG_INPUT_IQS9151_RESOLUTION_X,
+    .resolution_y = CONFIG_INPUT_IQS9151_RESOLUTION_Y,
+    .ati_target_count = CONFIG_INPUT_IQS9151_ATI_TARGETCOUNT,
+    .dynamic_filter_bottom_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_SPEED,
+    .dynamic_filter_top_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_TOP_SPEED,
+    .dynamic_filter_bottom_beta = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA,
+    .one_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE),
+    .two_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE),
+    .three_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE),
+    .scroll_x = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE),
+    .scroll_y = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE),
+    .pinch = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE),
+    .cursor_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE),
+    .scroll_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_INERTIA_ENABLE),
+};
+
+static struct iqs9151_runtime_config iqs9151_runtime_config = {
+    .resolution_x = CONFIG_INPUT_IQS9151_RESOLUTION_X,
+    .resolution_y = CONFIG_INPUT_IQS9151_RESOLUTION_Y,
+    .ati_target_count = CONFIG_INPUT_IQS9151_ATI_TARGETCOUNT,
+    .dynamic_filter_bottom_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_SPEED,
+    .dynamic_filter_top_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_TOP_SPEED,
+    .dynamic_filter_bottom_beta = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA,
+    .one_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE),
+    .two_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE),
+    .three_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE),
+    .scroll_x = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE),
+    .scroll_y = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE),
+    .pinch = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE),
+    .cursor_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE),
+    .scroll_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_INERTIA_ENABLE),
+};
+static const struct device *iqs9151_runtime_dev;
+K_MUTEX_DEFINE(iqs9151_runtime_config_mutex);
+
+const struct iqs9151_runtime_config *iqs9151_runtime_config_get(void) {
+    return &iqs9151_runtime_config;
+}
 
 #ifdef CONFIG_INPUT_IQS9151_TEST
 static struct {
@@ -1123,7 +1164,7 @@ static bool iqs9151_one_finger_update(struct iqs9151_data *data,
             iqs9151_release_hold(data, dev);
         }
         if (second_tap_detected &&
-            IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE)) {
+            iqs9151_runtime_config_get()->one_finger_tap) {
             (void)iqs9151_emit_click(data, dev, INPUT_BTN_0);
         }
         iqs9151_one_finger_reset(state);
@@ -1139,7 +1180,7 @@ static bool iqs9151_one_finger_update(struct iqs9151_data *data,
             tap_detected = true;
             if (IS_ENABLED(CONFIG_INPUT_IQS9151_1F_PRESSHOLD_ENABLE)) {
                 tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_0);
-            } else if (IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE)) {
+            } else if (iqs9151_runtime_config_get()->one_finger_tap) {
                 tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_0);
             } else {
                 tap_emitted = true;
@@ -1282,14 +1323,14 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
             const int32_t abs_center =
                 MAX(iqs9151_abs32(state->centroid_dx), iqs9151_abs32(state->centroid_dy));
             const int32_t abs_dist = iqs9151_abs32(state->distance_delta);
-            const bool scroll_enabled = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE) ||
-                                        IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE);
+            const bool scroll_enabled = iqs9151_runtime_config_get()->scroll_x ||
+                                        iqs9151_runtime_config_get()->scroll_y;
 
             if (scroll_enabled && abs_center >= TWO_FINGER_SCROLL_START_MOVE) {
                 state->mode = IQS9151_2F_MODE_SCROLL;
                 result->scroll_started = true;
                 state->tap_candidate = false;
-            } else if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE) &&
+            } else if (iqs9151_runtime_config_get()->pinch &&
                        abs_dist >= TWO_FINGER_PINCH_START_DISTANCE &&
                        abs_dist > abs_center) {
                 state->mode = IQS9151_2F_MODE_PINCH;
@@ -1300,10 +1341,10 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
 
         if (state->mode == IQS9151_2F_MODE_SCROLL) {
             result->scroll_active = true;
-            if (IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE)) {
+            if (iqs9151_runtime_config_get()->scroll_x) {
                 result->scroll_x = (int16_t)CLAMP(step_x, INT16_MIN, INT16_MAX);
             }
-            if (IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE)) {
+            if (iqs9151_runtime_config_get()->scroll_y) {
                 result->scroll_y = (int16_t)CLAMP(step_y, INT16_MIN, INT16_MAX);
             }
         } else if (state->mode == IQS9151_2F_MODE_PINCH) {
@@ -1347,7 +1388,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
             iqs9151_release_hold(data, dev);
         }
         if (second_tap_detected &&
-            IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE)) {
+            iqs9151_runtime_config_get()->two_finger_tap) {
             (void)iqs9151_emit_click(data, dev, INPUT_BTN_1);
         }
 
@@ -1374,7 +1415,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
         if (tap_detected) {
             if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE)) {
                 tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_1);
-            } else if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE)) {
+            } else if (iqs9151_runtime_config_get()->two_finger_tap) {
                 tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_1);
             } else {
                 tap_emitted = true;
@@ -1395,7 +1436,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
 
     if (!state->hold_sent &&
         state->mode == IQS9151_2F_MODE_NONE && state->tap_candidate &&
-        IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE)) {
+        iqs9151_runtime_config_get()->two_finger_tap) {
         const int64_t elapsed_ms = now_ms - state->down_ms;
 
         if (frame->finger_count == 1U &&
@@ -1420,7 +1461,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
     if (tap_detected) {
         if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE)) {
             tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_1);
-        } else if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE)) {
+        } else if (iqs9151_runtime_config_get()->two_finger_tap) {
             tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_1);
         } else {
             tap_emitted = true;
@@ -1592,7 +1633,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
             iqs9151_release_hold(data, dev);
         }
         if (second_tap_detected &&
-            IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE)) {
+            iqs9151_runtime_config_get()->three_finger_tap) {
             (void)iqs9151_emit_click(data, dev, INPUT_BTN_2);
         }
 
@@ -1623,7 +1664,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
         if (tap_detected) {
             if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE)) {
                 tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_2);
-            } else if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE)) {
+            } else if (iqs9151_runtime_config_get()->three_finger_tap) {
                 tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_2);
             } else {
                 tap_emitted = true;
@@ -1642,7 +1683,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
         return true;
     }
 
-    if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE) &&
+    if (iqs9151_runtime_config_get()->three_finger_tap &&
         !data->three_hold_sent && !data->three_swipe_sent &&
         data->three_tap_candidate) {
         const int64_t elapsed = now_ms - data->three_down_ms;
@@ -1667,7 +1708,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
     if (tap_detected) {
         if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE)) {
             tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_2);
-        } else if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE)) {
+        } else if (iqs9151_runtime_config_get()->three_finger_tap) {
             tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_2);
         } else {
             tap_emitted = true;
@@ -2146,7 +2187,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
 
     /* Inertial Cursolling */
     if (cursor_released && !released_from_hold && !suppress_cursor_tail) {
-        if (IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE) &&
+        if (iqs9151_runtime_config_get()->cursor_inertia &&
             iqs9151_inertia_seed_from_history(&data->cursor_motion_history,
                                               &iqs9151_cursor_params,
                                               &iqs9151_cursor_gate_params, now_ms,
@@ -2160,7 +2201,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
 
     /* Inertial Scrolling */
     if (two_result->scroll_ended) {
-        if (IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_INERTIA_ENABLE) &&
+        if (iqs9151_runtime_config_get()->scroll_inertia &&
             iqs9151_inertia_seed_from_history(&data->scroll_motion_history,
                                               &iqs9151_scroll_params,
                                               &iqs9151_scroll_gate_params, now_ms,
@@ -2470,7 +2511,8 @@ static int iqs9151_configure(const struct device *dev) {
     return ret;
 }
 
-static int iqs9151_apply_kconfig_overrides(const struct device *dev) {
+static int iqs9151_apply_runtime_config(const struct device *dev,
+                                        const struct iqs9151_runtime_config *runtime_config) {
     const struct iqs9151_config *cfg = dev->config;
     uint16_t rotate_bits = 0U;
     int ret;
@@ -2497,44 +2539,41 @@ static int iqs9151_apply_kconfig_overrides(const struct device *dev) {
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_X_RESOLUTION,
-                            (uint16_t)CONFIG_INPUT_IQS9151_RESOLUTION_X);
+    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_X_RESOLUTION, runtime_config->resolution_x);
     if (ret != 0) {
         LOG_ERR("Failed to apply X resolution (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_Y_RESOLUTION,
-                            (uint16_t)CONFIG_INPUT_IQS9151_RESOLUTION_Y);
+    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_Y_RESOLUTION, runtime_config->resolution_y);
     if (ret != 0) {
         LOG_ERR("Failed to apply Y resolution (%d)", ret);
         return ret;
     }
 
     ret = iqs9151_write_u16(cfg, IQS9151_ADDR_TRACKPAD_ATI_TARGET,
-                            (uint16_t)CONFIG_INPUT_IQS9151_ATI_TARGETCOUNT);
+                            runtime_config->ati_target_count);
     if (ret != 0) {
         LOG_ERR("Failed to apply ATI target (%d)", ret);
         return ret;
     }
 
     ret = iqs9151_write_u16(cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_SPEED,
-                            (uint16_t)CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_SPEED);
+                            runtime_config->dynamic_filter_bottom_speed);
     if (ret != 0) {
         LOG_ERR("Failed to apply dynamic filter bottom speed (%d)", ret);
         return ret;
     }
 
     ret = iqs9151_write_u16(cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_TOP_SPEED,
-                            (uint16_t)CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_TOP_SPEED);
+                            runtime_config->dynamic_filter_top_speed);
     if (ret != 0) {
         LOG_ERR("Failed to apply dynamic filter top speed (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_i2c_write(
-        cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_BETA,
-        (const uint8_t[]){(uint8_t)CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA}, 1);
+    ret = iqs9151_i2c_write(cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_BETA,
+                            &runtime_config->dynamic_filter_bottom_beta, 1);
     if (ret != 0) {
         LOG_ERR("Failed to apply dynamic filter bottom beta (%d)", ret);
         return ret;
@@ -2543,11 +2582,41 @@ static int iqs9151_apply_kconfig_overrides(const struct device *dev) {
     return 0;
 }
 
+static bool iqs9151_runtime_config_is_valid(const struct iqs9151_runtime_config *config) {
+    return config->resolution_x <= 4095U &&
+           config->resolution_y <= 4095U &&
+           config->ati_target_count <= 1000U &&
+           config->dynamic_filter_bottom_speed <= 2047U &&
+           config->dynamic_filter_top_speed <= 2047U;
+}
+
+int iqs9151_runtime_config_set(const struct iqs9151_runtime_config *config) {
+    int ret = 0;
+
+    if (config == NULL || !iqs9151_runtime_config_is_valid(config)) {
+        return -EINVAL;
+    }
+
+    k_mutex_lock(&iqs9151_runtime_config_mutex, K_FOREVER);
+    iqs9151_runtime_config = *config;
+    if (iqs9151_runtime_dev != NULL) {
+        ret = iqs9151_apply_runtime_config(iqs9151_runtime_dev, &iqs9151_runtime_config);
+    }
+    k_mutex_unlock(&iqs9151_runtime_config_mutex);
+
+    return ret;
+}
+
+void iqs9151_runtime_config_reset(void) {
+    (void)iqs9151_runtime_config_set(&iqs9151_default_runtime_config);
+}
+
 static int iqs9151_init(const struct device *dev) {
     const struct iqs9151_config *cfg = dev->config;
     struct iqs9151_data *data = dev->data;
     int ret;
     data->dev = dev;
+    iqs9151_runtime_dev = dev;
 
     LOG_DBG("Initialization Start");
 
@@ -2609,12 +2678,12 @@ static int iqs9151_init(const struct device *dev) {
 
     iqs9151_wait_for_ready(dev, 100);
 
-    ret = iqs9151_apply_kconfig_overrides(dev);
+    ret = iqs9151_apply_runtime_config(dev, iqs9151_runtime_config_get());
     if (ret != 0) {
-        LOG_ERR("Kconfig override apply failed: %d", ret);
+        LOG_ERR("runtime config apply failed: %d", ret);
         return ret;
     }
-    LOG_DBG("Kconfig overrides applied");
+    LOG_DBG("runtime config applied");
 
     iqs9151_wait_for_ready(dev, 100);
 
