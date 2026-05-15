@@ -1,0 +1,2 @@
+zmk.iqs9151.PingResponse.message   max_size:64
+zmk.iqs9151.ErrorResponse.message  max_size:96

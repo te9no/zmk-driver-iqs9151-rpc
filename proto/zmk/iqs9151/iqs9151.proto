@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package zmk.iqs9151;
+
+message PingRequest { uint32 value = 1; }
+message PingResponse { string message = 1; }
+message GetConfigRequest {}
+
+message Iqs9151Config {
+  uint32 resolution_x = 1;
+  uint32 resolution_y = 2;
+  uint32 ati_target_count = 3;
+  uint32 dynamic_filter_bottom_speed = 4;
+  uint32 dynamic_filter_top_speed = 5;
+  uint32 dynamic_filter_bottom_beta = 6;
+  bool one_finger_tap = 7;
+  bool two_finger_tap = 8;
+  bool three_finger_tap = 9;
+  bool scroll_x = 10;
+  bool scroll_y = 11;
+  bool pinch = 12;
+  bool cursor_inertia = 13;
+  bool scroll_inertia = 14;
+}
+
+message ConfigResponse { Iqs9151Config config = 1; }
+message SetConfigRequest { Iqs9151Config config = 1; }
+message SetConfigResponse { Iqs9151Config config = 1; }
+message ResetConfigRequest {}
+message ResetConfigResponse { Iqs9151Config config = 1; }
+
+message Request {
+  oneof request_type {
+    PingRequest ping = 1;
+    GetConfigRequest get_config = 2;
+    SetConfigRequest set_config = 3;
+    ResetConfigRequest reset_config = 4;
+  }
+}
+
+message ErrorResponse { string message = 1; }
+
+message Response {
+  oneof response_type {
+    ErrorResponse error = 1;
+    PingResponse ping = 2;
+    ConfigResponse config = 3;
+    SetConfigResponse set_config = 4;
+    ResetConfigResponse reset_config = 5;
+  }
+}
