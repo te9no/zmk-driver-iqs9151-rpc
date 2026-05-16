@@ -2562,6 +2562,12 @@ static int iqs9151_apply_runtime_config(const struct device *dev,
         rotate_bits = IQS9151_TRACKPAD_SETTING_SWITCH_XY |
                       IQS9151_TRACKPAD_SETTING_FLIP_X;
     }
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_FLIP_X)) {
+        rotate_bits ^= IQS9151_TRACKPAD_SETTING_FLIP_X;
+    }
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_FLIP_Y)) {
+        rotate_bits ^= IQS9151_TRACKPAD_SETTING_FLIP_Y;
+    }
 
     ret = iqs9151_update_bits_u16(cfg, IQS9151_ADDR_TRACKPAD_SETTINGS,
                                   IQS9151_TRACKPAD_SETTING_FLIP_X |
