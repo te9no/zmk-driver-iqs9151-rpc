@@ -37,35 +37,35 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 
 #define SCROLL_INERTIA_INTERVAL_MS 10
 #define SCROLL_INERTIA_MAX_DURATION_MS 3000
-#define SCROLL_INERTIA_DECAY_NUM CONFIG_INPUT_IQS9151_SCROLL_INERTIA_DECAY
+#define SCROLL_INERTIA_DECAY_NUM iqs9151_runtime_config_get()->scroll_inertia_decay
 #define SCROLL_INERTIA_DECAY_DEN 1000
 #define SCROLL_INERTIA_START_THRESHOLD 1
 #define SCROLL_INERTIA_MIN_VELOCITY 1
 #define SCROLL_EMA_ALPHA 10
-#define SCROLL_INERTIA_RECENT_WINDOW_MS CONFIG_INPUT_IQS9151_SCROLL_INERTIA_RECENT_WINDOW_MS
-#define SCROLL_INERTIA_STALE_GAP_MS CONFIG_INPUT_IQS9151_SCROLL_INERTIA_STALE_GAP_MS
-#define SCROLL_INERTIA_MIN_SAMPLES CONFIG_INPUT_IQS9151_SCROLL_INERTIA_MIN_SAMPLES
-#define SCROLL_INERTIA_MIN_AVG_SPEED CONFIG_INPUT_IQS9151_SCROLL_INERTIA_MIN_AVG_SPEED
+#define SCROLL_INERTIA_RECENT_WINDOW_MS iqs9151_runtime_config_get()->scroll_inertia_recent_window_ms
+#define SCROLL_INERTIA_STALE_GAP_MS iqs9151_runtime_config_get()->scroll_inertia_stale_gap_ms
+#define SCROLL_INERTIA_MIN_SAMPLES iqs9151_runtime_config_get()->scroll_inertia_min_samples
+#define SCROLL_INERTIA_MIN_AVG_SPEED iqs9151_runtime_config_get()->scroll_inertia_min_avg_speed
 
 #define CURSOR_INERTIA_INTERVAL_MS 10
 #define CURSOR_INERTIA_MAX_DURATION_MS 3000
-#define CURSOR_INERTIA_DECAY_NUM CONFIG_INPUT_IQS9151_CURSOR_INERTIA_DECAY
+#define CURSOR_INERTIA_DECAY_NUM iqs9151_runtime_config_get()->cursor_inertia_decay
 #define CURSOR_INERTIA_DECAY_DEN 1000
 #define CURSOR_INERTIA_START_THRESHOLD 2
 #define CURSOR_INERTIA_MIN_VELOCITY 2
 #define CURSOR_EMA_ALPHA 30
-#define CURSOR_INERTIA_RECENT_WINDOW_MS CONFIG_INPUT_IQS9151_CURSOR_INERTIA_RECENT_WINDOW_MS
-#define CURSOR_INERTIA_STALE_GAP_MS CONFIG_INPUT_IQS9151_CURSOR_INERTIA_STALE_GAP_MS
-#define CURSOR_INERTIA_MIN_SAMPLES CONFIG_INPUT_IQS9151_CURSOR_INERTIA_MIN_SAMPLES
-#define CURSOR_INERTIA_MIN_AVG_SPEED CONFIG_INPUT_IQS9151_CURSOR_INERTIA_MIN_AVG_SPEED
-#define ONE_FINGER_TAP_MAX_MS CONFIG_INPUT_IQS9151_1F_TAP_MAX_MS
-#define TWO_FINGER_TAP_MAX_MS CONFIG_INPUT_IQS9151_2F_TAP_MAX_MS
+#define CURSOR_INERTIA_RECENT_WINDOW_MS iqs9151_runtime_config_get()->cursor_inertia_recent_window_ms
+#define CURSOR_INERTIA_STALE_GAP_MS iqs9151_runtime_config_get()->cursor_inertia_stale_gap_ms
+#define CURSOR_INERTIA_MIN_SAMPLES iqs9151_runtime_config_get()->cursor_inertia_min_samples
+#define CURSOR_INERTIA_MIN_AVG_SPEED iqs9151_runtime_config_get()->cursor_inertia_min_avg_speed
+#define ONE_FINGER_TAP_MAX_MS iqs9151_runtime_config_get()->one_finger_tap_max_ms
+#define TWO_FINGER_TAP_MAX_MS iqs9151_runtime_config_get()->two_finger_tap_max_ms
 #define IQS9151_TAP_REENTRY_WINDOW_MS 30
-#define ONE_FINGER_TAPDRAG_GAP_MAX_MS CONFIG_INPUT_IQS9151_1F_TAPDRAG_GAP_MAX_MS
+#define ONE_FINGER_TAPDRAG_GAP_MAX_MS iqs9151_runtime_config_get()->one_finger_tapdrag_gap_max_ms
 #define ONE_FINGER_CLICK_HOLD_MAX_MS ONE_FINGER_TAPDRAG_GAP_MAX_MS
-#define TWO_FINGER_TAPDRAG_GAP_MAX_MS CONFIG_INPUT_IQS9151_2F_TAPDRAG_GAP_MAX_MS
+#define TWO_FINGER_TAPDRAG_GAP_MAX_MS iqs9151_runtime_config_get()->two_finger_tapdrag_gap_max_ms
 #define TWO_FINGER_CLICK_HOLD_MAX_MS TWO_FINGER_TAPDRAG_GAP_MAX_MS
-#define THREE_FINGER_TAPDRAG_GAP_MAX_MS CONFIG_INPUT_IQS9151_3F_TAPDRAG_GAP_MAX_MS
+#define THREE_FINGER_TAPDRAG_GAP_MAX_MS iqs9151_runtime_config_get()->three_finger_tapdrag_gap_max_ms
 #define THREE_FINGER_CLICK_HOLD_MAX_MS THREE_FINGER_TAPDRAG_GAP_MAX_MS
 #define TWO_FINGER_RELEASE_PENDING_MAX_MS 150
 #define THREE_FINGER_RELEASE_PENDING_MAX_MS 150
@@ -73,14 +73,14 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 #define THREE_FINGER_ONE_LEAD_MAX_MS 120
 #define THREE_FINGER_TWO_LEAD_MAX_MS 120
 #define IQS9151_FINGER_HISTORY_SIZE 5
-#define THREE_FINGER_TAP_MAX_MS CONFIG_INPUT_IQS9151_3F_TAP_MAX_MS
-#define THREE_FINGER_TAP_MOVE CONFIG_INPUT_IQS9151_3F_TAP_MOVE
-#define ONE_FINGER_TAP_MOVE CONFIG_INPUT_IQS9151_1F_TAP_MOVE
-#define TWO_FINGER_TAP_MOVE CONFIG_INPUT_IQS9151_2F_TAP_MOVE
-#define TWO_FINGER_SCROLL_START_MOVE CONFIG_INPUT_IQS9151_2F_SCROLL_START_MOVE
-#define TWO_FINGER_PINCH_START_DISTANCE CONFIG_INPUT_IQS9151_2F_PINCH_START_DISTANCE
+#define THREE_FINGER_TAP_MAX_MS iqs9151_runtime_config_get()->three_finger_tap_max_ms
+#define THREE_FINGER_TAP_MOVE iqs9151_runtime_config_get()->three_finger_tap_move
+#define ONE_FINGER_TAP_MOVE iqs9151_runtime_config_get()->one_finger_tap_move
+#define TWO_FINGER_TAP_MOVE iqs9151_runtime_config_get()->two_finger_tap_move
+#define TWO_FINGER_SCROLL_START_MOVE iqs9151_runtime_config_get()->two_finger_scroll_start_move
+#define TWO_FINGER_PINCH_START_DISTANCE iqs9151_runtime_config_get()->two_finger_pinch_start_distance
 #define TWO_FINGER_PINCH_WHEEL_DIV 12
-#define TWO_FINGER_PINCH_WHEEL_GAIN_X10 CONFIG_INPUT_IQS9151_2F_PINCH_WHEEL_GAIN_X10
+#define TWO_FINGER_PINCH_WHEEL_GAIN_X10 iqs9151_runtime_config_get()->two_finger_pinch_wheel_gain_x10
 #define TWO_FINGER_PINCH_WHEEL_GAIN_DEN 10
 
 struct iqs9151_config {
@@ -235,39 +235,54 @@ struct iqs9151_data {
     uint8_t finger_history_count;
 };
 
-static const struct iqs9151_runtime_config iqs9151_default_runtime_config = {
-    .resolution_x = CONFIG_INPUT_IQS9151_RESOLUTION_X,
-    .resolution_y = CONFIG_INPUT_IQS9151_RESOLUTION_Y,
-    .ati_target_count = CONFIG_INPUT_IQS9151_ATI_TARGETCOUNT,
-    .dynamic_filter_bottom_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_SPEED,
-    .dynamic_filter_top_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_TOP_SPEED,
-    .dynamic_filter_bottom_beta = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA,
-    .one_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE),
-    .two_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE),
-    .three_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE),
-    .scroll_x = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE),
-    .scroll_y = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE),
-    .pinch = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE),
-    .cursor_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE),
-    .scroll_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_INERTIA_ENABLE),
-};
+#define IQS9151_DEFAULT_RUNTIME_CONFIG                                                    \
+    {                                                                                     \
+        .resolution_x = CONFIG_INPUT_IQS9151_RESOLUTION_X,                                \
+        .resolution_y = CONFIG_INPUT_IQS9151_RESOLUTION_Y,                                \
+        .ati_target_count = CONFIG_INPUT_IQS9151_ATI_TARGETCOUNT,                         \
+        .dynamic_filter_bottom_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_SPEED,  \
+        .dynamic_filter_top_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_TOP_SPEED,        \
+        .dynamic_filter_bottom_beta = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA,    \
+        .one_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE),                 \
+        .one_finger_presshold = IS_ENABLED(CONFIG_INPUT_IQS9151_1F_PRESSHOLD_ENABLE),     \
+        .one_finger_tap_max_ms = CONFIG_INPUT_IQS9151_1F_TAP_MAX_MS,                      \
+        .one_finger_tap_move = CONFIG_INPUT_IQS9151_1F_TAP_MOVE,                          \
+        .one_finger_tapdrag_gap_max_ms = CONFIG_INPUT_IQS9151_1F_TAPDRAG_GAP_MAX_MS,      \
+        .two_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE),                 \
+        .two_finger_presshold = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE),     \
+        .two_finger_tap_max_ms = CONFIG_INPUT_IQS9151_2F_TAP_MAX_MS,                      \
+        .two_finger_tap_move = CONFIG_INPUT_IQS9151_2F_TAP_MOVE,                          \
+        .two_finger_tapdrag_gap_max_ms = CONFIG_INPUT_IQS9151_2F_TAPDRAG_GAP_MAX_MS,      \
+        .three_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE),               \
+        .three_finger_presshold = IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE),   \
+        .three_finger_tap_max_ms = CONFIG_INPUT_IQS9151_3F_TAP_MAX_MS,                    \
+        .three_finger_tap_move = CONFIG_INPUT_IQS9151_3F_TAP_MOVE,                        \
+        .three_finger_tapdrag_gap_max_ms = CONFIG_INPUT_IQS9151_3F_TAPDRAG_GAP_MAX_MS,    \
+        .three_finger_swipe_threshold = CONFIG_INPUT_IQS9151_3F_SWIPE_THRESHOLD,          \
+        .scroll_x = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE),                     \
+        .scroll_y = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE),                     \
+        .two_finger_scroll_start_move = CONFIG_INPUT_IQS9151_2F_SCROLL_START_MOVE,        \
+        .pinch = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE),                        \
+        .two_finger_pinch_start_distance = CONFIG_INPUT_IQS9151_2F_PINCH_START_DISTANCE,  \
+        .two_finger_pinch_wheel_gain_x10 = CONFIG_INPUT_IQS9151_2F_PINCH_WHEEL_GAIN_X10,  \
+        .cursor_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE),         \
+        .cursor_inertia_decay = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_DECAY,                \
+        .cursor_inertia_recent_window_ms = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_RECENT_WINDOW_MS, \
+        .cursor_inertia_stale_gap_ms = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_STALE_GAP_MS,  \
+        .cursor_inertia_min_samples = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_MIN_SAMPLES,    \
+        .cursor_inertia_min_avg_speed = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_MIN_AVG_SPEED,\
+        .scroll_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_INERTIA_ENABLE),         \
+        .scroll_inertia_decay = CONFIG_INPUT_IQS9151_SCROLL_INERTIA_DECAY,                \
+        .scroll_inertia_recent_window_ms = CONFIG_INPUT_IQS9151_SCROLL_INERTIA_RECENT_WINDOW_MS, \
+        .scroll_inertia_stale_gap_ms = CONFIG_INPUT_IQS9151_SCROLL_INERTIA_STALE_GAP_MS,  \
+        .scroll_inertia_min_samples = CONFIG_INPUT_IQS9151_SCROLL_INERTIA_MIN_SAMPLES,    \
+        .scroll_inertia_min_avg_speed = CONFIG_INPUT_IQS9151_SCROLL_INERTIA_MIN_AVG_SPEED,\
+    }
 
-static struct iqs9151_runtime_config iqs9151_runtime_config = {
-    .resolution_x = CONFIG_INPUT_IQS9151_RESOLUTION_X,
-    .resolution_y = CONFIG_INPUT_IQS9151_RESOLUTION_Y,
-    .ati_target_count = CONFIG_INPUT_IQS9151_ATI_TARGETCOUNT,
-    .dynamic_filter_bottom_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_SPEED,
-    .dynamic_filter_top_speed = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_TOP_SPEED,
-    .dynamic_filter_bottom_beta = CONFIG_INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA,
-    .one_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_1F_TAP_ENABLE),
-    .two_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_TAP_ENABLE),
-    .three_finger_tap = IS_ENABLED(CONFIG_INPUT_IQS9151_3F_TAP_ENABLE),
-    .scroll_x = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE),
-    .scroll_y = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE),
-    .pinch = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE),
-    .cursor_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE),
-    .scroll_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_INERTIA_ENABLE),
-};
+static const struct iqs9151_runtime_config iqs9151_default_runtime_config =
+    IQS9151_DEFAULT_RUNTIME_CONFIG;
+
+static struct iqs9151_runtime_config iqs9151_runtime_config = IQS9151_DEFAULT_RUNTIME_CONFIG;
 static const struct device *iqs9151_runtime_dev;
 K_MUTEX_DEFINE(iqs9151_runtime_config_mutex);
 
@@ -535,38 +550,49 @@ static const uint8_t iqs9151_snap_enable[] = {
     SNAPCHANNELENABLE_84, SNAPCHANNELENABLE_85, SNAPCHANNELENABLE_86,
     SNAPCHANNELENABLE_87,
 };
-static const struct iqs9151_inertia_params iqs9151_scroll_params = {
-    .interval_ms = SCROLL_INERTIA_INTERVAL_MS,
-    .max_duration_ms = SCROLL_INERTIA_MAX_DURATION_MS,
-    .decay_num = SCROLL_INERTIA_DECAY_NUM,
-    .decay_den = SCROLL_INERTIA_DECAY_DEN,
-    .fp_shift = INERTIA_FP_SHIFT,
-    .start_threshold = SCROLL_INERTIA_START_THRESHOLD,
-    .min_velocity = SCROLL_INERTIA_MIN_VELOCITY,
-    .ema_alpha = SCROLL_EMA_ALPHA,
-};
-static const struct iqs9151_inertia_gate_params iqs9151_scroll_gate_params = {
-    .recent_window_ms = SCROLL_INERTIA_RECENT_WINDOW_MS,
-    .stale_gap_ms = SCROLL_INERTIA_STALE_GAP_MS,
-    .min_samples = SCROLL_INERTIA_MIN_SAMPLES,
-    .min_avg_speed = SCROLL_INERTIA_MIN_AVG_SPEED,
-};
-static const struct iqs9151_inertia_params iqs9151_cursor_params = {
-    .interval_ms = CURSOR_INERTIA_INTERVAL_MS,
-    .max_duration_ms = CURSOR_INERTIA_MAX_DURATION_MS,
-    .decay_num = CURSOR_INERTIA_DECAY_NUM,
-    .decay_den = CURSOR_INERTIA_DECAY_DEN,
-    .fp_shift = INERTIA_FP_SHIFT,
-    .start_threshold = CURSOR_INERTIA_START_THRESHOLD,
-    .min_velocity = CURSOR_INERTIA_MIN_VELOCITY,
-    .ema_alpha = CURSOR_EMA_ALPHA,
-};
-static const struct iqs9151_inertia_gate_params iqs9151_cursor_gate_params = {
-    .recent_window_ms = CURSOR_INERTIA_RECENT_WINDOW_MS,
-    .stale_gap_ms = CURSOR_INERTIA_STALE_GAP_MS,
-    .min_samples = CURSOR_INERTIA_MIN_SAMPLES,
-    .min_avg_speed = CURSOR_INERTIA_MIN_AVG_SPEED,
-};
+static struct iqs9151_inertia_params iqs9151_scroll_params_get(void) {
+    return (struct iqs9151_inertia_params){
+        .interval_ms = SCROLL_INERTIA_INTERVAL_MS,
+        .max_duration_ms = SCROLL_INERTIA_MAX_DURATION_MS,
+        .decay_num = SCROLL_INERTIA_DECAY_NUM,
+        .decay_den = SCROLL_INERTIA_DECAY_DEN,
+        .fp_shift = INERTIA_FP_SHIFT,
+        .start_threshold = SCROLL_INERTIA_START_THRESHOLD,
+        .min_velocity = SCROLL_INERTIA_MIN_VELOCITY,
+        .ema_alpha = SCROLL_EMA_ALPHA,
+    };
+}
+
+static struct iqs9151_inertia_gate_params iqs9151_scroll_gate_params_get(void) {
+    return (struct iqs9151_inertia_gate_params){
+        .recent_window_ms = SCROLL_INERTIA_RECENT_WINDOW_MS,
+        .stale_gap_ms = SCROLL_INERTIA_STALE_GAP_MS,
+        .min_samples = SCROLL_INERTIA_MIN_SAMPLES,
+        .min_avg_speed = SCROLL_INERTIA_MIN_AVG_SPEED,
+    };
+}
+
+static struct iqs9151_inertia_params iqs9151_cursor_params_get(void) {
+    return (struct iqs9151_inertia_params){
+        .interval_ms = CURSOR_INERTIA_INTERVAL_MS,
+        .max_duration_ms = CURSOR_INERTIA_MAX_DURATION_MS,
+        .decay_num = CURSOR_INERTIA_DECAY_NUM,
+        .decay_den = CURSOR_INERTIA_DECAY_DEN,
+        .fp_shift = INERTIA_FP_SHIFT,
+        .start_threshold = CURSOR_INERTIA_START_THRESHOLD,
+        .min_velocity = CURSOR_INERTIA_MIN_VELOCITY,
+        .ema_alpha = CURSOR_EMA_ALPHA,
+    };
+}
+
+static struct iqs9151_inertia_gate_params iqs9151_cursor_gate_params_get(void) {
+    return (struct iqs9151_inertia_gate_params){
+        .recent_window_ms = CURSOR_INERTIA_RECENT_WINDOW_MS,
+        .stale_gap_ms = CURSOR_INERTIA_STALE_GAP_MS,
+        .min_samples = CURSOR_INERTIA_MIN_SAMPLES,
+        .min_avg_speed = CURSOR_INERTIA_MIN_AVG_SPEED,
+    };
+}
 
 static int iqs9151_i2c_write(const struct iqs9151_config *cfg, uint16_t reg, const uint8_t *buf, size_t len) {
     uint8_t tx[2 + IQS9151_I2C_CHUNK_SIZE];
@@ -1178,7 +1204,7 @@ static bool iqs9151_one_finger_update(struct iqs9151_data *data,
             iqs9151_abs32(state->dx) <= ONE_FINGER_TAP_MOVE &&
             iqs9151_abs32(state->dy) <= ONE_FINGER_TAP_MOVE) {
             tap_detected = true;
-            if (IS_ENABLED(CONFIG_INPUT_IQS9151_1F_PRESSHOLD_ENABLE)) {
+            if (iqs9151_runtime_config_get()->one_finger_presshold) {
                 tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_0);
             } else if (iqs9151_runtime_config_get()->one_finger_tap) {
                 tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_0);
@@ -1190,7 +1216,7 @@ static bool iqs9151_one_finger_update(struct iqs9151_data *data,
 
     if (tap_detected &&
         tap_emitted &&
-        IS_ENABLED(CONFIG_INPUT_IQS9151_1F_PRESSHOLD_ENABLE)) {
+        iqs9151_runtime_config_get()->one_finger_presshold) {
         data->one_finger_click_pending = true;
         data->one_finger_click_pending_ms = now_ms;
         k_work_reschedule(&data->one_finger_click_work,
@@ -1413,7 +1439,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
         }
 
         if (tap_detected) {
-            if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE)) {
+            if (iqs9151_runtime_config_get()->two_finger_presshold) {
                 tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_1);
             } else if (iqs9151_runtime_config_get()->two_finger_tap) {
                 tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_1);
@@ -1423,7 +1449,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
         }
         if (tap_detected &&
             tap_emitted &&
-            IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE)) {
+            iqs9151_runtime_config_get()->two_finger_presshold) {
             data->two_finger_click_pending = true;
             data->two_finger_click_pending_ms = now_ms;
             k_work_reschedule(&data->two_finger_click_work,
@@ -1459,7 +1485,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
     }
 
     if (tap_detected) {
-        if (IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE)) {
+        if (iqs9151_runtime_config_get()->two_finger_presshold) {
             tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_1);
         } else if (iqs9151_runtime_config_get()->two_finger_tap) {
             tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_1);
@@ -1469,7 +1495,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
     }
     if (tap_detected &&
         tap_emitted &&
-        IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PRESSHOLD_ENABLE)) {
+        iqs9151_runtime_config_get()->two_finger_presshold) {
         data->two_finger_click_pending = true;
         data->two_finger_click_pending_ms = now_ms;
         k_work_reschedule(&data->two_finger_click_work,
@@ -1596,14 +1622,14 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
         }
 
         if (!data->three_swipe_sent && !data->three_hold_sent) {
-            if (iqs9151_abs32(data->three_dx) >= CONFIG_INPUT_IQS9151_3F_SWIPE_THRESHOLD &&
+            if (iqs9151_abs32(data->three_dx) >= iqs9151_runtime_config_get()->three_finger_swipe_threshold &&
                 iqs9151_abs32(data->three_dx) >= iqs9151_abs32(data->three_dy)) {
                 const uint16_t key = (data->three_dx < 0) ? INPUT_BTN_4 : INPUT_BTN_3;
                 iqs9151_report_key_event(dev, key, true, true, K_FOREVER);
                 iqs9151_report_key_event(dev, key, false, true, K_FOREVER);
                 data->three_swipe_sent = true;
                 return true;
-            } else if (iqs9151_abs32(data->three_dy) >= CONFIG_INPUT_IQS9151_3F_SWIPE_THRESHOLD &&
+            } else if (iqs9151_abs32(data->three_dy) >= iqs9151_runtime_config_get()->three_finger_swipe_threshold &&
                        iqs9151_abs32(data->three_dy) > iqs9151_abs32(data->three_dx)) {
                 const uint16_t key = (data->three_dy < 0) ? INPUT_BTN_5 : INPUT_BTN_6;
                 iqs9151_report_key_event(dev, key, true, true, K_FOREVER);
@@ -1662,7 +1688,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
         }
 
         if (tap_detected) {
-            if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE)) {
+            if (iqs9151_runtime_config_get()->three_finger_presshold) {
                 tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_2);
             } else if (iqs9151_runtime_config_get()->three_finger_tap) {
                 tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_2);
@@ -1672,7 +1698,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
         }
         if (tap_detected &&
             tap_emitted &&
-            IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE)) {
+            iqs9151_runtime_config_get()->three_finger_presshold) {
             data->three_finger_click_pending = true;
             data->three_finger_click_pending_ms = now_ms;
             k_work_reschedule(&data->three_finger_click_work,
@@ -1706,7 +1732,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
     }
 
     if (tap_detected) {
-        if (IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE)) {
+        if (iqs9151_runtime_config_get()->three_finger_presshold) {
             tap_emitted = iqs9151_emit_hold_press(data, dev, INPUT_BTN_2);
         } else if (iqs9151_runtime_config_get()->three_finger_tap) {
             tap_emitted = iqs9151_emit_click(data, dev, INPUT_BTN_2);
@@ -1716,7 +1742,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
     }
     if (tap_detected &&
         tap_emitted &&
-        IS_ENABLED(CONFIG_INPUT_IQS9151_3F_PRESSHOLD_ENABLE)) {
+        iqs9151_runtime_config_get()->three_finger_presshold) {
         data->three_finger_click_pending = true;
         data->three_finger_click_pending_ms = now_ms;
         k_work_reschedule(&data->three_finger_click_work,
@@ -1832,11 +1858,12 @@ static void iqs9151_inertia_scroll_work_cb(struct k_work *work) {
     struct iqs9151_data *data =
         CONTAINER_OF(dwork, struct iqs9151_data, inertia_scroll_work);
     const struct device *dev = data->dev;
+    const struct iqs9151_inertia_params params = iqs9151_scroll_params_get();
     int32_t out_x;
     int32_t out_y;
 
     const bool active =
-        iqs9151_inertia_step(&data->inertia_scroll, &iqs9151_scroll_params, &out_x, &out_y);
+        iqs9151_inertia_step(&data->inertia_scroll, &params, &out_x, &out_y);
 
     if (out_x > INT16_MAX) {
         out_x = INT16_MAX;
@@ -1860,7 +1887,7 @@ static void iqs9151_inertia_scroll_work_cb(struct k_work *work) {
 
     if (active) {
         k_work_schedule(&data->inertia_scroll_work,
-                        K_MSEC(iqs9151_scroll_params.interval_ms));
+                        K_MSEC(params.interval_ms));
     }
 }
 
@@ -1889,11 +1916,12 @@ static void iqs9151_inertia_cursor_work_cb(struct k_work *work) {
     struct iqs9151_data *data =
         CONTAINER_OF(dwork, struct iqs9151_data, inertia_cursor_work);
     const struct device *dev = data->dev;
+    const struct iqs9151_inertia_params params = iqs9151_cursor_params_get();
     int32_t out_x;
     int32_t out_y;
 
     const bool active =
-        iqs9151_inertia_step(&data->inertia_cursor, &iqs9151_cursor_params, &out_x, &out_y);
+        iqs9151_inertia_step(&data->inertia_cursor, &params, &out_x, &out_y);
 
     if (out_x > INT16_MAX) {
         out_x = INT16_MAX;
@@ -1917,7 +1945,7 @@ static void iqs9151_inertia_cursor_work_cb(struct k_work *work) {
 
     if (active) {
         k_work_schedule(&data->inertia_cursor_work,
-                        K_MSEC(iqs9151_cursor_params.interval_ms));
+                        K_MSEC(params.interval_ms));
     }
 }
 
@@ -2151,6 +2179,12 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
         (prev_frame->finger_count == 0U) && (frame->finger_count == 1U);
     const bool cursor_released =
         (prev_frame->finger_count == 1U) && (frame->finger_count == 0U);
+    const struct iqs9151_inertia_params scroll_params = iqs9151_scroll_params_get();
+    const struct iqs9151_inertia_gate_params scroll_gate_params =
+        iqs9151_scroll_gate_params_get();
+    const struct iqs9151_inertia_params cursor_params = iqs9151_cursor_params_get();
+    const struct iqs9151_inertia_gate_params cursor_gate_params =
+        iqs9151_cursor_gate_params_get();
     int32_t seed_vx_fp;
     int32_t seed_vy_fp;
 
@@ -2162,7 +2196,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
     if (two_result->scroll_active) {
         iqs9151_ema_update(&data->scroll_ema_x_fp, &data->scroll_ema_y_fp,
                            two_result->scroll_x, two_result->scroll_y,
-                           iqs9151_scroll_params.ema_alpha);
+                           scroll_params.ema_alpha);
         iqs9151_motion_history_push(&data->scroll_motion_history, two_result->scroll_x,
                                     two_result->scroll_y, now_ms);
     }
@@ -2179,7 +2213,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
         if (frame->finger_count == 1U && cursor_moving) {
             iqs9151_inertia_cancel(&data->inertia_cursor, &data->inertia_cursor_work);
             iqs9151_ema_update(&data->cursor_ema_x_fp, &data->cursor_ema_y_fp,
-                               frame->rel_x, frame->rel_y, iqs9151_cursor_params.ema_alpha);
+                               frame->rel_x, frame->rel_y, cursor_params.ema_alpha);
             iqs9151_motion_history_push(&data->cursor_motion_history, frame->rel_x,
                                         frame->rel_y, now_ms);
         }
@@ -2189,11 +2223,11 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
     if (cursor_released && !released_from_hold && !suppress_cursor_tail) {
         if (iqs9151_runtime_config_get()->cursor_inertia &&
             iqs9151_inertia_seed_from_history(&data->cursor_motion_history,
-                                              &iqs9151_cursor_params,
-                                              &iqs9151_cursor_gate_params, now_ms,
+                                              &cursor_params,
+                                              &cursor_gate_params, now_ms,
                                               &seed_vx_fp, &seed_vy_fp)) {
             iqs9151_inertia_start(&data->inertia_cursor, &data->inertia_cursor_work,
-                                  &iqs9151_cursor_params, seed_vx_fp, seed_vy_fp);
+                                  &cursor_params, seed_vx_fp, seed_vy_fp);
         }
         iqs9151_ema_reset(&data->cursor_ema_x_fp, &data->cursor_ema_y_fp);
         iqs9151_motion_history_reset(&data->cursor_motion_history);
@@ -2203,11 +2237,11 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
     if (two_result->scroll_ended) {
         if (iqs9151_runtime_config_get()->scroll_inertia &&
             iqs9151_inertia_seed_from_history(&data->scroll_motion_history,
-                                              &iqs9151_scroll_params,
-                                              &iqs9151_scroll_gate_params, now_ms,
+                                              &scroll_params,
+                                              &scroll_gate_params, now_ms,
                                               &seed_vx_fp, &seed_vy_fp)) {
             iqs9151_inertia_start(&data->inertia_scroll, &data->inertia_scroll_work,
-                                  &iqs9151_scroll_params, seed_vx_fp, seed_vy_fp);
+                                  &scroll_params, seed_vx_fp, seed_vy_fp);
         }
         iqs9151_ema_reset(&data->scroll_ema_x_fp, &data->scroll_ema_y_fp);
         iqs9151_motion_history_reset(&data->scroll_motion_history);
@@ -2528,6 +2562,12 @@ static int iqs9151_apply_runtime_config(const struct device *dev,
         rotate_bits = IQS9151_TRACKPAD_SETTING_SWITCH_XY |
                       IQS9151_TRACKPAD_SETTING_FLIP_X;
     }
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_FLIP_X)) {
+        rotate_bits ^= IQS9151_TRACKPAD_SETTING_FLIP_X;
+    }
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_FLIP_Y)) {
+        rotate_bits ^= IQS9151_TRACKPAD_SETTING_FLIP_Y;
+    }
 
     ret = iqs9151_update_bits_u16(cfg, IQS9151_ADDR_TRACKPAD_SETTINGS,
                                   IQS9151_TRACKPAD_SETTING_FLIP_X |
@@ -2587,7 +2627,51 @@ static bool iqs9151_runtime_config_is_valid(const struct iqs9151_runtime_config 
            config->resolution_y <= 4095U &&
            config->ati_target_count <= 1000U &&
            config->dynamic_filter_bottom_speed <= 2047U &&
-           config->dynamic_filter_top_speed <= 2047U;
+           config->dynamic_filter_top_speed <= 2047U &&
+           config->dynamic_filter_bottom_beta <= 255U &&
+           config->one_finger_tap_max_ms >= 1U &&
+           config->one_finger_tap_max_ms <= 1000U &&
+           config->one_finger_tap_move >= 1U &&
+           config->one_finger_tap_move <= 1000U &&
+           config->one_finger_tapdrag_gap_max_ms >= 1U &&
+           config->one_finger_tapdrag_gap_max_ms <= 1000U &&
+           config->two_finger_tap_max_ms >= 1U &&
+           config->two_finger_tap_max_ms <= 1000U &&
+           config->two_finger_tap_move >= 1U &&
+           config->two_finger_tap_move <= 1000U &&
+           config->two_finger_tapdrag_gap_max_ms >= 1U &&
+           config->two_finger_tapdrag_gap_max_ms <= 1000U &&
+           config->three_finger_tap_max_ms >= 1U &&
+           config->three_finger_tap_max_ms <= 1000U &&
+           config->three_finger_tap_move >= 1U &&
+           config->three_finger_tap_move <= 1000U &&
+           config->three_finger_tapdrag_gap_max_ms >= 1U &&
+           config->three_finger_tapdrag_gap_max_ms <= 1000U &&
+           config->three_finger_swipe_threshold <= 1000U &&
+           config->two_finger_scroll_start_move >= 1U &&
+           config->two_finger_scroll_start_move <= 2000U &&
+           config->two_finger_pinch_start_distance >= 1U &&
+           config->two_finger_pinch_start_distance <= 2000U &&
+           config->two_finger_pinch_wheel_gain_x10 >= 1U &&
+           config->two_finger_pinch_wheel_gain_x10 <= 100U &&
+           config->cursor_inertia_decay <= 1000U &&
+           config->cursor_inertia_recent_window_ms >= 1U &&
+           config->cursor_inertia_recent_window_ms <= 500U &&
+           config->cursor_inertia_stale_gap_ms >= 1U &&
+           config->cursor_inertia_stale_gap_ms <= 500U &&
+           config->cursor_inertia_min_samples >= 1U &&
+           config->cursor_inertia_min_samples <= IQS9151_INERTIA_MOTION_HISTORY_SIZE &&
+           config->cursor_inertia_min_avg_speed >= 1U &&
+           config->cursor_inertia_min_avg_speed <= 500U &&
+           config->scroll_inertia_decay <= 1000U &&
+           config->scroll_inertia_recent_window_ms >= 1U &&
+           config->scroll_inertia_recent_window_ms <= 500U &&
+           config->scroll_inertia_stale_gap_ms >= 1U &&
+           config->scroll_inertia_stale_gap_ms <= 500U &&
+           config->scroll_inertia_min_samples >= 1U &&
+           config->scroll_inertia_min_samples <= IQS9151_INERTIA_MOTION_HISTORY_SIZE &&
+           config->scroll_inertia_min_avg_speed >= 1U &&
+           config->scroll_inertia_min_avg_speed <= 500U;
 }
 
 int iqs9151_runtime_config_set(const struct iqs9151_runtime_config *config) {

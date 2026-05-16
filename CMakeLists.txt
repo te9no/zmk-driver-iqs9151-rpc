@@ -10,6 +10,10 @@ if(EXISTS "${APPLICATION_SOURCE_DIR}/include/drivers/input_processor.h")
   add_subdirectory(input_processors)
 endif()
 
+if(CONFIG_ZMK_SPLIT_RELAY_EVENT AND (CONFIG_INPUT_IQS9151_STUDIO_RPC OR CONFIG_INPUT_IQS9151))
+  target_sources(app PRIVATE src/studio/iqs9151_split.c)
+endif()
+
 if(CONFIG_INPUT_IQS9151_STUDIO_RPC)
   target_sources(app PRIVATE src/studio/iqs9151_handler.c)
 

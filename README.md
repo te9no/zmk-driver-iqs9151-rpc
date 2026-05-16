@@ -139,6 +139,7 @@ CONFIG_INPUT_IQS9151_STUDIO_RPC=y
 このRPC版では、DYA Studio向けに `dya__iqs9151` Custom Studio RPCサブシステムを追加しています。
 互換用に `zmk__iqs9151` もadvertiseします。
 Studio対応ファームウェアを接続すると、WebUIからIQS9151の一部パラメータを読み込み・変更・初期値へリセットできます。
+IQS9151がsplit peripheral側にある場合は、ZMK split relay eventでcentralからperipheralへRPC要求を中継します。
 
 ### 調整できる項目
 
@@ -156,6 +157,7 @@ Studio対応ファームウェアを接続すると、WebUIからIQS9151の一�
 ```conf
 CONFIG_ZMK_STUDIO=y
 CONFIG_INPUT_IQS9151_STUDIO_RPC=y
+CONFIG_ZMK_SPLIT_RELAY_EVENT=y
 ```
 
 production firmwareでは `https://te9no.github.io/zmk-driver-iqs9151-rpc/` をadvertiseします。

@@ -46,6 +46,18 @@ config INPUT_IQS9151_ROTATE_270
     bool "270"
 endchoice
 
+config INPUT_IQS9151_FLIP_X
+    bool "IQS9151 flip X"
+    default n
+    help
+      Flip the IQS9151 trackpad X axis after the selected rotation.
+
+config INPUT_IQS9151_FLIP_Y
+    bool "IQS9151 flip Y"
+    default n
+    help
+      Flip the IQS9151 trackpad Y axis after the selected rotation.
+
 config INPUT_IQS9151_RESOLUTION_X
     int "IQS9151 X resolution"
     range 0 4095
