@@ -5,9 +5,10 @@ rsource "input_processors/Kconfig"
 config INPUT_IQS9151_STUDIO_RPC
     bool "Enable IQS9151 custom Studio RPC"
     depends on ZMK_STUDIO_RPC
+    select ZMK_SPLIT_RELAY_EVENT if ZMK_SPLIT
     help
       Enable the IQS9151 custom Studio RPC subsystem using ZMK custom
       Studio RPC. The subsystem identifiers are dya__iqs9151 and
-      zmk__iqs9151. If the IQS9151 device is not present in the same
-      firmware image, the subsystem is advertised but runtime get/set
-      requests return an error.
+      zmk__iqs9151. If the IQS9151 device is on a split peripheral,
+      requests are relayed to that peripheral when ZMK split relay
+      events are enabled.

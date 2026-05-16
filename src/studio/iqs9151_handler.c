@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <zmk/iqs9151/iqs9151.pb.h>
 #include <zmk/iqs9151_runtime.h>
+#include <zmk/iqs9151_split.h>
 #include <zmk/studio/custom.h>
 
 #include <errno.h>
@@ -95,6 +96,21 @@ static void handle_get_config_request(zmk_iqs9151_Response *resp) {
     config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_config_tag;
     resp->response_type.config = config;
+#elif IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+    struct iqs9151_runtime_config runtime;
+    int ret = iqs9151_split_get_config(&runtime);
+
+    if (ret != 0) {
+        LOG_WRN("Failed to read split IQS9151 config: %d", ret);
+        set_error_response(resp, ret == -ETIMEDOUT ? "split IQS9151 request timed out"
+                                                   : "failed to read split IQS9151 config");
+        return;
+    }
+
+    zmk_iqs9151_ConfigResponse config = zmk_iqs9151_ConfigResponse_init_zero;
+    config.config = runtime_to_proto(&runtime);
+    resp->which_response_type = zmk_iqs9151_Response_config_tag;
+    resp->response_type.config = config;
 #else
     set_error_response(resp, "IQS9151 device is not available in this firmware image");
 #endif
@@ -121,6 +137,27 @@ static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
     set_config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_set_config_tag;
     resp->response_type.set_config = set_config;
+#elif IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+    if (!proto_config_is_valid(&req->config)) {
+        set_error_response(resp, "invalid config");
+        return;
+    }
+
+    struct iqs9151_runtime_config config = proto_to_runtime(&req->config);
+    struct iqs9151_runtime_config applied;
+    int ret = iqs9151_split_set_config(&config, &applied);
+
+    if (ret != 0) {
+        LOG_WRN("Failed to apply split IQS9151 config: %d", ret);
+        set_error_response(resp, ret == -ETIMEDOUT ? "split IQS9151 request timed out"
+                                                   : "failed to apply split IQS9151 config");
+        return;
+    }
+
+    zmk_iqs9151_SetConfigResponse set_config = zmk_iqs9151_SetConfigResponse_init_zero;
+    set_config.config = runtime_to_proto(&applied);
+    resp->which_response_type = zmk_iqs9151_Response_set_config_tag;
+    resp->response_type.set_config = set_config;
 #else
     ARG_UNUSED(req);
     set_error_response(resp, "IQS9151 device is not available in this firmware image");
@@ -133,6 +170,21 @@ static void handle_reset_config_request(zmk_iqs9151_Response *resp) {
 
     zmk_iqs9151_ResetConfigResponse reset_config = zmk_iqs9151_ResetConfigResponse_init_zero;
     reset_config.config = runtime_to_proto(iqs9151_runtime_config_get());
+    resp->which_response_type = zmk_iqs9151_Response_reset_config_tag;
+    resp->response_type.reset_config = reset_config;
+#elif IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+    struct iqs9151_runtime_config runtime;
+    int ret = iqs9151_split_reset_config(&runtime);
+
+    if (ret != 0) {
+        LOG_WRN("Failed to reset split IQS9151 config: %d", ret);
+        set_error_response(resp, ret == -ETIMEDOUT ? "split IQS9151 request timed out"
+                                                   : "failed to reset split IQS9151 config");
+        return;
+    }
+
+    zmk_iqs9151_ResetConfigResponse reset_config = zmk_iqs9151_ResetConfigResponse_init_zero;
+    reset_config.config = runtime_to_proto(&runtime);
     resp->which_response_type = zmk_iqs9151_Response_reset_config_tag;
     resp->response_type.reset_config = reset_config;
 #else
