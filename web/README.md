@@ -1,6 +1,6 @@
 # IQS9151 Studio Web UI
 
-DYA Studio / ZMK Studio Custom RPC UI for the zmk__iqs9151 subsystem.
+DYA Studio / ZMK Studio Custom RPC UI for the dya__iqs9151 subsystem.
 
 ## Requirements
 
@@ -14,7 +14,8 @@ Run:
 
     npm run dev
 
-The firmware advertises http://localhost:5173 while developing locally.
+Production firmware advertises https://te9no.github.io/zmk-driver-iqs9151-rpc/.
+For local development, run npm run dev and temporarily advertise http://localhost:5173.
 
 ## Production Build
 

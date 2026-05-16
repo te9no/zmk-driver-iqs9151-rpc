@@ -21,7 +21,7 @@ IQS9151トラックパッドモジュールをZMKで使用し、カーソル移�
 
 ## この派生版で追加したもの
 
-- `zmk__iqs9151` Custom Studio RPCサブシステム
+- `dya__iqs9151` / `zmk__iqs9151` Custom Studio RPCサブシステム
 - IQS9151パラメータ調整用WebUI
 - WebUIデモモード
 - `get_config` / `set_config` / `reset_config` RPC
@@ -135,7 +135,8 @@ CONFIG_INPUT_IQS9151_STUDIO_RPC=y
 
 ## DYA Studio / WebUI
 
-このRPC版では、`zmk__iqs9151` Custom Studio RPCサブシステムを追加しています。
+このRPC版では、DYA Studio向けに `dya__iqs9151` Custom Studio RPCサブシステムを追加しています。
+互換用に `zmk__iqs9151` もadvertiseします。
 Studio対応ファームウェアを接続すると、WebUIからIQS9151の一部パラメータを読み込み・変更・初期値へリセットできます。
 
 ### 調整できる項目
@@ -156,7 +157,8 @@ CONFIG_ZMK_STUDIO=y
 CONFIG_INPUT_IQS9151_STUDIO_RPC=y
 ```
 
-WebUI開発時のURLはファームウェア側で `http://localhost:5173` としてadvertiseされます。
+production firmwareでは `https://te9no.github.io/zmk-driver-iqs9151-rpc/` をadvertiseします。
+WebUI開発時は `http://localhost:5173` に一時変更してください。
 
 ### WebUIの起動
 

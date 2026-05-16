@@ -7,16 +7,18 @@
 
 #include <errno.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 
-LOG_MODULE_DECLARE(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
+LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 static struct zmk_rpc_custom_subsystem_meta iqs9151_meta = {
-    ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS("http://localhost:5173"),
+    ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS("https://te9no.github.io/zmk-driver-iqs9151-rpc/"),
     .security = ZMK_STUDIO_RPC_HANDLER_UNSECURED,
 };
 
 ZMK_RPC_CUSTOM_SUBSYSTEM(zmk__iqs9151, &iqs9151_meta, iqs9151_rpc_handle_request);
 ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER(zmk__iqs9151, zmk_iqs9151_Response);
+ZMK_RPC_CUSTOM_SUBSYSTEM(dya__iqs9151, &iqs9151_meta, iqs9151_rpc_handle_request);
 
 static void set_error_response(zmk_iqs9151_Response *resp, const char *message) {
     zmk_iqs9151_ErrorResponse err = zmk_iqs9151_ErrorResponse_init_zero;
@@ -87,15 +89,20 @@ static void handle_ping_request(const zmk_iqs9151_PingRequest *req,
 }
 
 static void handle_get_config_request(zmk_iqs9151_Response *resp) {
+#if IS_ENABLED(CONFIG_INPUT_IQS9151)
     zmk_iqs9151_ConfigResponse config = zmk_iqs9151_ConfigResponse_init_zero;
 
     config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_config_tag;
     resp->response_type.config = config;
+#else
+    set_error_response(resp, "IQS9151 device is not available in this firmware image");
+#endif
 }
 
 static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
                                       zmk_iqs9151_Response *resp) {
+#if IS_ENABLED(CONFIG_INPUT_IQS9151)
     if (!proto_config_is_valid(&req->config)) {
         set_error_response(resp, "invalid config");
         return;
@@ -114,15 +121,23 @@ static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
     set_config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_set_config_tag;
     resp->response_type.set_config = set_config;
+#else
+    ARG_UNUSED(req);
+    set_error_response(resp, "IQS9151 device is not available in this firmware image");
+#endif
 }
 
 static void handle_reset_config_request(zmk_iqs9151_Response *resp) {
+#if IS_ENABLED(CONFIG_INPUT_IQS9151)
     iqs9151_runtime_config_reset();
 
     zmk_iqs9151_ResetConfigResponse reset_config = zmk_iqs9151_ResetConfigResponse_init_zero;
     reset_config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_reset_config_tag;
     resp->response_type.reset_config = reset_config;
+#else
+    set_error_response(resp, "IQS9151 device is not available in this firmware image");
+#endif
 }
 
 static bool iqs9151_rpc_handle_request(const zmk_custom_CallRequest *raw_request,
