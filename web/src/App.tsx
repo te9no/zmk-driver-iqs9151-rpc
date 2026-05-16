@@ -13,8 +13,8 @@ import {
   Response,
 } from "./proto/zmk/iqs9151/iqs9151";
 
-export const SUBSYSTEM_IDENTIFIER = "zmk__iqs9151";
-const SUBSYSTEM_CANDIDATES = [SUBSYSTEM_IDENTIFIER, "iqs9151", "dya__iqs9151"];
+export const SUBSYSTEM_IDENTIFIER = "dya__iqs9151";
+const SUBSYSTEM_CANDIDATES = [SUBSYSTEM_IDENTIFIER, "zmk__iqs9151", "iqs9151"];
 
 type NumericField = keyof Pick<
   Iqs9151Config,
@@ -246,7 +246,7 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
 
       {!demoMode && zmkApp?.state.connection && !subsystem && (
         <p className="warning">
-          zmk__iqs9151 is not advertised. Available: {availableSubsystems.map(formatSubsystem).join(", ") || "none"}
+          dya__iqs9151 is not advertised. Available: {availableSubsystems.map(formatSubsystem).join(", ") || "none"}
         </p>
       )}
 
