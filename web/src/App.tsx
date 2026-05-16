@@ -253,7 +253,11 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
     setStatus("");
     try {
       const response = await callRPC({ getConfig: {} });
-      setConfig(response.config?.config ?? null);
+      const loadedConfig = response.config?.config;
+      if (!loadedConfig) {
+        throw new Error("IQS9151 config response did not include parameters");
+      }
+      setConfig(loadedConfig);
       setStatus("Loaded current IQS9151 config");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to load config");
@@ -272,7 +276,11 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
     setStatus("");
     try {
       const response = await callRPC({ setConfig: { config } });
-      setConfig(response.setConfig?.config ?? config);
+      const appliedConfig = response.setConfig?.config;
+      if (!appliedConfig) {
+        throw new Error("IQS9151 apply response did not include parameters");
+      }
+      setConfig(appliedConfig);
       setStatus("Applied IQS9151 config");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to apply config");
@@ -291,7 +299,11 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
     setStatus("");
     try {
       const response = await callRPC({ resetConfig: {} });
-      setConfig(response.resetConfig?.config ?? null);
+      const resetConfig = response.resetConfig?.config;
+      if (!resetConfig) {
+        throw new Error("IQS9151 reset response did not include parameters");
+      }
+      setConfig(resetConfig);
       setStatus("Reset IQS9151 config to firmware defaults");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to reset config");

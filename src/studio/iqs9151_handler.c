@@ -199,6 +199,7 @@ static void handle_get_config_request(zmk_iqs9151_Response *resp) {
 #if IS_ENABLED(CONFIG_INPUT_IQS9151)
     zmk_iqs9151_ConfigResponse config = zmk_iqs9151_ConfigResponse_init_zero;
 
+    config.has_config = true;
     config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_config_tag;
     resp->response_type.config = config;
@@ -213,6 +214,7 @@ static void handle_get_config_request(zmk_iqs9151_Response *resp) {
     }
 
     zmk_iqs9151_ConfigResponse config = zmk_iqs9151_ConfigResponse_init_zero;
+    config.has_config = true;
     config.config = runtime_to_proto(&runtime);
     resp->which_response_type = zmk_iqs9151_Response_config_tag;
     resp->response_type.config = config;
@@ -224,6 +226,10 @@ static void handle_get_config_request(zmk_iqs9151_Response *resp) {
 static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
                                       zmk_iqs9151_Response *resp) {
 #if IS_ENABLED(CONFIG_INPUT_IQS9151)
+    if (!req->has_config) {
+        set_error_response(resp, "missing config");
+        return;
+    }
     if (!proto_config_is_valid(&req->config)) {
         set_error_response(resp, "invalid config");
         return;
@@ -239,10 +245,15 @@ static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
     }
 
     zmk_iqs9151_SetConfigResponse set_config = zmk_iqs9151_SetConfigResponse_init_zero;
+    set_config.has_config = true;
     set_config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_set_config_tag;
     resp->response_type.set_config = set_config;
 #elif IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+    if (!req->has_config) {
+        set_error_response(resp, "missing config");
+        return;
+    }
     if (!proto_config_is_valid(&req->config)) {
         set_error_response(resp, "invalid config");
         return;
@@ -259,6 +270,7 @@ static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
     }
 
     zmk_iqs9151_SetConfigResponse set_config = zmk_iqs9151_SetConfigResponse_init_zero;
+    set_config.has_config = true;
     set_config.config = runtime_to_proto(&applied);
     resp->which_response_type = zmk_iqs9151_Response_set_config_tag;
     resp->response_type.set_config = set_config;
@@ -273,6 +285,7 @@ static void handle_reset_config_request(zmk_iqs9151_Response *resp) {
     iqs9151_runtime_config_reset();
 
     zmk_iqs9151_ResetConfigResponse reset_config = zmk_iqs9151_ResetConfigResponse_init_zero;
+    reset_config.has_config = true;
     reset_config.config = runtime_to_proto(iqs9151_runtime_config_get());
     resp->which_response_type = zmk_iqs9151_Response_reset_config_tag;
     resp->response_type.reset_config = reset_config;
@@ -287,6 +300,7 @@ static void handle_reset_config_request(zmk_iqs9151_Response *resp) {
     }
 
     zmk_iqs9151_ResetConfigResponse reset_config = zmk_iqs9151_ResetConfigResponse_init_zero;
+    reset_config.has_config = true;
     reset_config.config = runtime_to_proto(&runtime);
     resp->which_response_type = zmk_iqs9151_Response_reset_config_tag;
     resp->response_type.reset_config = reset_config;
