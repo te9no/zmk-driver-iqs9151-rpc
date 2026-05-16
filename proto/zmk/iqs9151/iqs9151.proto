@@ -21,6 +21,32 @@ message Iqs9151Config {
   bool pinch = 12;
   bool cursor_inertia = 13;
   bool scroll_inertia = 14;
+  bool one_finger_presshold = 15;
+  uint32 one_finger_tap_max_ms = 16;
+  uint32 one_finger_tap_move = 17;
+  uint32 one_finger_tapdrag_gap_max_ms = 18;
+  bool two_finger_presshold = 19;
+  uint32 two_finger_tap_max_ms = 20;
+  uint32 two_finger_tap_move = 21;
+  uint32 two_finger_tapdrag_gap_max_ms = 22;
+  bool three_finger_presshold = 23;
+  uint32 three_finger_tap_max_ms = 24;
+  uint32 three_finger_tap_move = 25;
+  uint32 three_finger_tapdrag_gap_max_ms = 26;
+  uint32 three_finger_swipe_threshold = 27;
+  uint32 two_finger_scroll_start_move = 28;
+  uint32 two_finger_pinch_start_distance = 29;
+  uint32 two_finger_pinch_wheel_gain_x10 = 30;
+  uint32 cursor_inertia_decay = 31;
+  uint32 cursor_inertia_recent_window_ms = 32;
+  uint32 cursor_inertia_stale_gap_ms = 33;
+  uint32 cursor_inertia_min_samples = 34;
+  uint32 cursor_inertia_min_avg_speed = 35;
+  uint32 scroll_inertia_decay = 36;
+  uint32 scroll_inertia_recent_window_ms = 37;
+  uint32 scroll_inertia_stale_gap_ms = 38;
+  uint32 scroll_inertia_min_samples = 39;
+  uint32 scroll_inertia_min_avg_speed = 40;
 }
 
 message ConfigResponse { Iqs9151Config config = 1; }

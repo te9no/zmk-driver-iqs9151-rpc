@@ -24,13 +24,39 @@ type NumericField = keyof Pick<
   | "dynamicFilterBottomSpeed"
   | "dynamicFilterTopSpeed"
   | "dynamicFilterBottomBeta"
+  | "oneFingerTapMaxMs"
+  | "oneFingerTapMove"
+  | "oneFingerTapdragGapMaxMs"
+  | "twoFingerTapMaxMs"
+  | "twoFingerTapMove"
+  | "twoFingerTapdragGapMaxMs"
+  | "threeFingerTapMaxMs"
+  | "threeFingerTapMove"
+  | "threeFingerTapdragGapMaxMs"
+  | "threeFingerSwipeThreshold"
+  | "twoFingerScrollStartMove"
+  | "twoFingerPinchStartDistance"
+  | "twoFingerPinchWheelGainX10"
+  | "cursorInertiaDecay"
+  | "cursorInertiaRecentWindowMs"
+  | "cursorInertiaStaleGapMs"
+  | "cursorInertiaMinSamples"
+  | "cursorInertiaMinAvgSpeed"
+  | "scrollInertiaDecay"
+  | "scrollInertiaRecentWindowMs"
+  | "scrollInertiaStaleGapMs"
+  | "scrollInertiaMinSamples"
+  | "scrollInertiaMinAvgSpeed"
 >;
 
 type BooleanField = keyof Pick<
   Iqs9151Config,
   | "oneFingerTap"
+  | "oneFingerPresshold"
   | "twoFingerTap"
+  | "twoFingerPresshold"
   | "threeFingerTap"
+  | "threeFingerPresshold"
   | "scrollX"
   | "scrollY"
   | "pinch"
@@ -51,12 +77,38 @@ const numericFields: Array<{
   { key: "dynamicFilterBottomSpeed", label: "Filter bottom speed", min: 0, max: 2047, help: "XY dynamic filter lower speed threshold" },
   { key: "dynamicFilterTopSpeed", label: "Filter top speed", min: 0, max: 2047, help: "XY dynamic filter upper speed threshold" },
   { key: "dynamicFilterBottomBeta", label: "Filter bottom beta", min: 0, max: 255, help: "XY dynamic filter beta value" },
+  { key: "oneFingerTapMaxMs", label: "1F tap max ms", min: 1, max: 1000, help: "Maximum duration for one-finger tap" },
+  { key: "oneFingerTapMove", label: "1F tap move", min: 1, max: 1000, help: "Move tolerance for one-finger tap" },
+  { key: "oneFingerTapdragGapMaxMs", label: "1F tap-drag gap", min: 1, max: 1000, help: "Maximum gap before one-finger tap-drag" },
+  { key: "twoFingerTapMaxMs", label: "2F tap max ms", min: 1, max: 1000, help: "Maximum duration for two-finger tap" },
+  { key: "twoFingerTapMove", label: "2F tap move", min: 1, max: 1000, help: "Move tolerance for two-finger tap" },
+  { key: "twoFingerTapdragGapMaxMs", label: "2F tap-drag gap", min: 1, max: 1000, help: "Maximum gap before two-finger tap-drag" },
+  { key: "threeFingerTapMaxMs", label: "3F tap max ms", min: 1, max: 1000, help: "Maximum duration for three-finger tap" },
+  { key: "threeFingerTapMove", label: "3F tap move", min: 1, max: 1000, help: "Move tolerance for three-finger tap" },
+  { key: "threeFingerTapdragGapMaxMs", label: "3F tap-drag gap", min: 1, max: 1000, help: "Maximum gap before three-finger tap-drag" },
+  { key: "threeFingerSwipeThreshold", label: "3F swipe threshold", min: 0, max: 1000, help: "Distance threshold for three-finger swipe" },
+  { key: "twoFingerScrollStartMove", label: "2F scroll start", min: 1, max: 2000, help: "Movement before two-finger scroll starts" },
+  { key: "twoFingerPinchStartDistance", label: "Pinch start distance", min: 1, max: 2000, help: "Distance change before pinch starts" },
+  { key: "twoFingerPinchWheelGainX10", label: "Pinch gain x10", min: 1, max: 100, help: "Pinch wheel gain in tenths" },
+  { key: "cursorInertiaDecay", label: "Cursor inertia decay", min: 0, max: 1000, help: "Cursor inertia decay numerator" },
+  { key: "cursorInertiaRecentWindowMs", label: "Cursor recent window", min: 1, max: 500, help: "Recent motion window for cursor inertia" },
+  { key: "cursorInertiaStaleGapMs", label: "Cursor stale gap", min: 1, max: 500, help: "Maximum gap between cursor samples" },
+  { key: "cursorInertiaMinSamples", label: "Cursor min samples", min: 1, max: 12, help: "Minimum samples to seed cursor inertia" },
+  { key: "cursorInertiaMinAvgSpeed", label: "Cursor min speed", min: 1, max: 500, help: "Minimum average speed for cursor inertia" },
+  { key: "scrollInertiaDecay", label: "Scroll inertia decay", min: 0, max: 1000, help: "Scroll inertia decay numerator" },
+  { key: "scrollInertiaRecentWindowMs", label: "Scroll recent window", min: 1, max: 500, help: "Recent motion window for scroll inertia" },
+  { key: "scrollInertiaStaleGapMs", label: "Scroll stale gap", min: 1, max: 500, help: "Maximum gap between scroll samples" },
+  { key: "scrollInertiaMinSamples", label: "Scroll min samples", min: 1, max: 12, help: "Minimum samples to seed scroll inertia" },
+  { key: "scrollInertiaMinAvgSpeed", label: "Scroll min speed", min: 1, max: 500, help: "Minimum average speed for scroll inertia" },
 ];
 
 const booleanFields: Array<{ key: BooleanField; label: string; help: string }> = [
   { key: "oneFingerTap", label: "1F tap", help: "One-finger BTN0 tap" },
+  { key: "oneFingerPresshold", label: "1F press-hold", help: "Hold BTN0 for one-finger press" },
   { key: "twoFingerTap", label: "2F tap", help: "Two-finger BTN1 tap" },
+  { key: "twoFingerPresshold", label: "2F press-hold", help: "Hold BTN1 for two-finger press" },
   { key: "threeFingerTap", label: "3F tap", help: "Three-finger BTN2 tap" },
+  { key: "threeFingerPresshold", label: "3F press-hold", help: "Hold BTN2 for three-finger press" },
   { key: "scrollX", label: "Horizontal scroll", help: "Two-finger REL_HWHEEL" },
   { key: "scrollY", label: "Vertical scroll", help: "Two-finger REL_WHEEL" },
   { key: "pinch", label: "Pinch", help: "Two-finger pinch wheel" },
@@ -72,13 +124,39 @@ const demoConfig: Iqs9151Config = {
   dynamicFilterTopSpeed: 511,
   dynamicFilterBottomBeta: 20,
   oneFingerTap: true,
+  oneFingerPresshold: false,
+  oneFingerTapMaxMs: 120,
+  oneFingerTapMove: 25,
+  oneFingerTapdragGapMaxMs: 230,
   twoFingerTap: true,
+  twoFingerPresshold: false,
+  twoFingerTapMaxMs: 130,
+  twoFingerTapMove: 30,
+  twoFingerTapdragGapMaxMs: 200,
   threeFingerTap: true,
+  threeFingerPresshold: false,
+  threeFingerTapMaxMs: 180,
+  threeFingerTapMove: 30,
+  threeFingerTapdragGapMaxMs: 230,
+  threeFingerSwipeThreshold: 300,
   scrollX: true,
   scrollY: true,
+  twoFingerScrollStartMove: 50,
   pinch: true,
+  twoFingerPinchStartDistance: 80,
+  twoFingerPinchWheelGainX10: 40,
   cursorInertia: true,
+  cursorInertiaDecay: 970,
+  cursorInertiaRecentWindowMs: 60,
+  cursorInertiaStaleGapMs: 35,
+  cursorInertiaMinSamples: 2,
+  cursorInertiaMinAvgSpeed: 10,
   scrollInertia: true,
+  scrollInertiaDecay: 985,
+  scrollInertiaRecentWindowMs: 60,
+  scrollInertiaStaleGapMs: 35,
+  scrollInertiaMinSamples: 1,
+  scrollInertiaMinAvgSpeed: 4,
 };
 
 function App() {

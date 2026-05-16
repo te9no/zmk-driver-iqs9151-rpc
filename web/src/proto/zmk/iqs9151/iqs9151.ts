@@ -35,6 +35,32 @@ export interface Iqs9151Config {
   pinch: boolean;
   cursorInertia: boolean;
   scrollInertia: boolean;
+  oneFingerPresshold: boolean;
+  oneFingerTapMaxMs: number;
+  oneFingerTapMove: number;
+  oneFingerTapdragGapMaxMs: number;
+  twoFingerPresshold: boolean;
+  twoFingerTapMaxMs: number;
+  twoFingerTapMove: number;
+  twoFingerTapdragGapMaxMs: number;
+  threeFingerPresshold: boolean;
+  threeFingerTapMaxMs: number;
+  threeFingerTapMove: number;
+  threeFingerTapdragGapMaxMs: number;
+  threeFingerSwipeThreshold: number;
+  twoFingerScrollStartMove: number;
+  twoFingerPinchStartDistance: number;
+  twoFingerPinchWheelGainX10: number;
+  cursorInertiaDecay: number;
+  cursorInertiaRecentWindowMs: number;
+  cursorInertiaStaleGapMs: number;
+  cursorInertiaMinSamples: number;
+  cursorInertiaMinAvgSpeed: number;
+  scrollInertiaDecay: number;
+  scrollInertiaRecentWindowMs: number;
+  scrollInertiaStaleGapMs: number;
+  scrollInertiaMinSamples: number;
+  scrollInertiaMinAvgSpeed: number;
 }
 
 export interface ConfigResponse {
@@ -217,6 +243,32 @@ function createBaseIqs9151Config(): Iqs9151Config {
     pinch: false,
     cursorInertia: false,
     scrollInertia: false,
+    oneFingerPresshold: false,
+    oneFingerTapMaxMs: 0,
+    oneFingerTapMove: 0,
+    oneFingerTapdragGapMaxMs: 0,
+    twoFingerPresshold: false,
+    twoFingerTapMaxMs: 0,
+    twoFingerTapMove: 0,
+    twoFingerTapdragGapMaxMs: 0,
+    threeFingerPresshold: false,
+    threeFingerTapMaxMs: 0,
+    threeFingerTapMove: 0,
+    threeFingerTapdragGapMaxMs: 0,
+    threeFingerSwipeThreshold: 0,
+    twoFingerScrollStartMove: 0,
+    twoFingerPinchStartDistance: 0,
+    twoFingerPinchWheelGainX10: 0,
+    cursorInertiaDecay: 0,
+    cursorInertiaRecentWindowMs: 0,
+    cursorInertiaStaleGapMs: 0,
+    cursorInertiaMinSamples: 0,
+    cursorInertiaMinAvgSpeed: 0,
+    scrollInertiaDecay: 0,
+    scrollInertiaRecentWindowMs: 0,
+    scrollInertiaStaleGapMs: 0,
+    scrollInertiaMinSamples: 0,
+    scrollInertiaMinAvgSpeed: 0,
   };
 }
 
@@ -263,6 +315,84 @@ export const Iqs9151Config: MessageFns<Iqs9151Config> = {
     }
     if (message.scrollInertia !== false) {
       writer.uint32(112).bool(message.scrollInertia);
+    }
+    if (message.oneFingerPresshold !== false) {
+      writer.uint32(120).bool(message.oneFingerPresshold);
+    }
+    if (message.oneFingerTapMaxMs !== 0) {
+      writer.uint32(128).uint32(message.oneFingerTapMaxMs);
+    }
+    if (message.oneFingerTapMove !== 0) {
+      writer.uint32(136).uint32(message.oneFingerTapMove);
+    }
+    if (message.oneFingerTapdragGapMaxMs !== 0) {
+      writer.uint32(144).uint32(message.oneFingerTapdragGapMaxMs);
+    }
+    if (message.twoFingerPresshold !== false) {
+      writer.uint32(152).bool(message.twoFingerPresshold);
+    }
+    if (message.twoFingerTapMaxMs !== 0) {
+      writer.uint32(160).uint32(message.twoFingerTapMaxMs);
+    }
+    if (message.twoFingerTapMove !== 0) {
+      writer.uint32(168).uint32(message.twoFingerTapMove);
+    }
+    if (message.twoFingerTapdragGapMaxMs !== 0) {
+      writer.uint32(176).uint32(message.twoFingerTapdragGapMaxMs);
+    }
+    if (message.threeFingerPresshold !== false) {
+      writer.uint32(184).bool(message.threeFingerPresshold);
+    }
+    if (message.threeFingerTapMaxMs !== 0) {
+      writer.uint32(192).uint32(message.threeFingerTapMaxMs);
+    }
+    if (message.threeFingerTapMove !== 0) {
+      writer.uint32(200).uint32(message.threeFingerTapMove);
+    }
+    if (message.threeFingerTapdragGapMaxMs !== 0) {
+      writer.uint32(208).uint32(message.threeFingerTapdragGapMaxMs);
+    }
+    if (message.threeFingerSwipeThreshold !== 0) {
+      writer.uint32(216).uint32(message.threeFingerSwipeThreshold);
+    }
+    if (message.twoFingerScrollStartMove !== 0) {
+      writer.uint32(224).uint32(message.twoFingerScrollStartMove);
+    }
+    if (message.twoFingerPinchStartDistance !== 0) {
+      writer.uint32(232).uint32(message.twoFingerPinchStartDistance);
+    }
+    if (message.twoFingerPinchWheelGainX10 !== 0) {
+      writer.uint32(240).uint32(message.twoFingerPinchWheelGainX10);
+    }
+    if (message.cursorInertiaDecay !== 0) {
+      writer.uint32(248).uint32(message.cursorInertiaDecay);
+    }
+    if (message.cursorInertiaRecentWindowMs !== 0) {
+      writer.uint32(256).uint32(message.cursorInertiaRecentWindowMs);
+    }
+    if (message.cursorInertiaStaleGapMs !== 0) {
+      writer.uint32(264).uint32(message.cursorInertiaStaleGapMs);
+    }
+    if (message.cursorInertiaMinSamples !== 0) {
+      writer.uint32(272).uint32(message.cursorInertiaMinSamples);
+    }
+    if (message.cursorInertiaMinAvgSpeed !== 0) {
+      writer.uint32(280).uint32(message.cursorInertiaMinAvgSpeed);
+    }
+    if (message.scrollInertiaDecay !== 0) {
+      writer.uint32(288).uint32(message.scrollInertiaDecay);
+    }
+    if (message.scrollInertiaRecentWindowMs !== 0) {
+      writer.uint32(296).uint32(message.scrollInertiaRecentWindowMs);
+    }
+    if (message.scrollInertiaStaleGapMs !== 0) {
+      writer.uint32(304).uint32(message.scrollInertiaStaleGapMs);
+    }
+    if (message.scrollInertiaMinSamples !== 0) {
+      writer.uint32(312).uint32(message.scrollInertiaMinSamples);
+    }
+    if (message.scrollInertiaMinAvgSpeed !== 0) {
+      writer.uint32(320).uint32(message.scrollInertiaMinAvgSpeed);
     }
     return writer;
   },
@@ -386,6 +516,214 @@ export const Iqs9151Config: MessageFns<Iqs9151Config> = {
           message.scrollInertia = reader.bool();
           continue;
         }
+        case 15: {
+          if (tag !== 120) {
+            break;
+          }
+
+          message.oneFingerPresshold = reader.bool();
+          continue;
+        }
+        case 16: {
+          if (tag !== 128) {
+            break;
+          }
+
+          message.oneFingerTapMaxMs = reader.uint32();
+          continue;
+        }
+        case 17: {
+          if (tag !== 136) {
+            break;
+          }
+
+          message.oneFingerTapMove = reader.uint32();
+          continue;
+        }
+        case 18: {
+          if (tag !== 144) {
+            break;
+          }
+
+          message.oneFingerTapdragGapMaxMs = reader.uint32();
+          continue;
+        }
+        case 19: {
+          if (tag !== 152) {
+            break;
+          }
+
+          message.twoFingerPresshold = reader.bool();
+          continue;
+        }
+        case 20: {
+          if (tag !== 160) {
+            break;
+          }
+
+          message.twoFingerTapMaxMs = reader.uint32();
+          continue;
+        }
+        case 21: {
+          if (tag !== 168) {
+            break;
+          }
+
+          message.twoFingerTapMove = reader.uint32();
+          continue;
+        }
+        case 22: {
+          if (tag !== 176) {
+            break;
+          }
+
+          message.twoFingerTapdragGapMaxMs = reader.uint32();
+          continue;
+        }
+        case 23: {
+          if (tag !== 184) {
+            break;
+          }
+
+          message.threeFingerPresshold = reader.bool();
+          continue;
+        }
+        case 24: {
+          if (tag !== 192) {
+            break;
+          }
+
+          message.threeFingerTapMaxMs = reader.uint32();
+          continue;
+        }
+        case 25: {
+          if (tag !== 200) {
+            break;
+          }
+
+          message.threeFingerTapMove = reader.uint32();
+          continue;
+        }
+        case 26: {
+          if (tag !== 208) {
+            break;
+          }
+
+          message.threeFingerTapdragGapMaxMs = reader.uint32();
+          continue;
+        }
+        case 27: {
+          if (tag !== 216) {
+            break;
+          }
+
+          message.threeFingerSwipeThreshold = reader.uint32();
+          continue;
+        }
+        case 28: {
+          if (tag !== 224) {
+            break;
+          }
+
+          message.twoFingerScrollStartMove = reader.uint32();
+          continue;
+        }
+        case 29: {
+          if (tag !== 232) {
+            break;
+          }
+
+          message.twoFingerPinchStartDistance = reader.uint32();
+          continue;
+        }
+        case 30: {
+          if (tag !== 240) {
+            break;
+          }
+
+          message.twoFingerPinchWheelGainX10 = reader.uint32();
+          continue;
+        }
+        case 31: {
+          if (tag !== 248) {
+            break;
+          }
+
+          message.cursorInertiaDecay = reader.uint32();
+          continue;
+        }
+        case 32: {
+          if (tag !== 256) {
+            break;
+          }
+
+          message.cursorInertiaRecentWindowMs = reader.uint32();
+          continue;
+        }
+        case 33: {
+          if (tag !== 264) {
+            break;
+          }
+
+          message.cursorInertiaStaleGapMs = reader.uint32();
+          continue;
+        }
+        case 34: {
+          if (tag !== 272) {
+            break;
+          }
+
+          message.cursorInertiaMinSamples = reader.uint32();
+          continue;
+        }
+        case 35: {
+          if (tag !== 280) {
+            break;
+          }
+
+          message.cursorInertiaMinAvgSpeed = reader.uint32();
+          continue;
+        }
+        case 36: {
+          if (tag !== 288) {
+            break;
+          }
+
+          message.scrollInertiaDecay = reader.uint32();
+          continue;
+        }
+        case 37: {
+          if (tag !== 296) {
+            break;
+          }
+
+          message.scrollInertiaRecentWindowMs = reader.uint32();
+          continue;
+        }
+        case 38: {
+          if (tag !== 304) {
+            break;
+          }
+
+          message.scrollInertiaStaleGapMs = reader.uint32();
+          continue;
+        }
+        case 39: {
+          if (tag !== 312) {
+            break;
+          }
+
+          message.scrollInertiaMinSamples = reader.uint32();
+          continue;
+        }
+        case 40: {
+          if (tag !== 320) {
+            break;
+          }
+
+          message.scrollInertiaMinAvgSpeed = reader.uint32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -414,6 +752,32 @@ export const Iqs9151Config: MessageFns<Iqs9151Config> = {
     message.pinch = object.pinch ?? false;
     message.cursorInertia = object.cursorInertia ?? false;
     message.scrollInertia = object.scrollInertia ?? false;
+    message.oneFingerPresshold = object.oneFingerPresshold ?? false;
+    message.oneFingerTapMaxMs = object.oneFingerTapMaxMs ?? 0;
+    message.oneFingerTapMove = object.oneFingerTapMove ?? 0;
+    message.oneFingerTapdragGapMaxMs = object.oneFingerTapdragGapMaxMs ?? 0;
+    message.twoFingerPresshold = object.twoFingerPresshold ?? false;
+    message.twoFingerTapMaxMs = object.twoFingerTapMaxMs ?? 0;
+    message.twoFingerTapMove = object.twoFingerTapMove ?? 0;
+    message.twoFingerTapdragGapMaxMs = object.twoFingerTapdragGapMaxMs ?? 0;
+    message.threeFingerPresshold = object.threeFingerPresshold ?? false;
+    message.threeFingerTapMaxMs = object.threeFingerTapMaxMs ?? 0;
+    message.threeFingerTapMove = object.threeFingerTapMove ?? 0;
+    message.threeFingerTapdragGapMaxMs = object.threeFingerTapdragGapMaxMs ?? 0;
+    message.threeFingerSwipeThreshold = object.threeFingerSwipeThreshold ?? 0;
+    message.twoFingerScrollStartMove = object.twoFingerScrollStartMove ?? 0;
+    message.twoFingerPinchStartDistance = object.twoFingerPinchStartDistance ?? 0;
+    message.twoFingerPinchWheelGainX10 = object.twoFingerPinchWheelGainX10 ?? 0;
+    message.cursorInertiaDecay = object.cursorInertiaDecay ?? 0;
+    message.cursorInertiaRecentWindowMs = object.cursorInertiaRecentWindowMs ?? 0;
+    message.cursorInertiaStaleGapMs = object.cursorInertiaStaleGapMs ?? 0;
+    message.cursorInertiaMinSamples = object.cursorInertiaMinSamples ?? 0;
+    message.cursorInertiaMinAvgSpeed = object.cursorInertiaMinAvgSpeed ?? 0;
+    message.scrollInertiaDecay = object.scrollInertiaDecay ?? 0;
+    message.scrollInertiaRecentWindowMs = object.scrollInertiaRecentWindowMs ?? 0;
+    message.scrollInertiaStaleGapMs = object.scrollInertiaStaleGapMs ?? 0;
+    message.scrollInertiaMinSamples = object.scrollInertiaMinSamples ?? 0;
+    message.scrollInertiaMinAvgSpeed = object.scrollInertiaMinAvgSpeed ?? 0;
     return message;
   },
 };
