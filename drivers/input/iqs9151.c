@@ -34,6 +34,7 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 #define EMA_ALPHA_DEN (1 << EMA_FP_SHIFT)
 #define IQS9151_FRAME_READ_SIZE 28
 #define IQS9151_INERTIA_MOTION_HISTORY_SIZE 12
+#define IQS9151_RUNTIME_GAIN_DEN 10
 
 #define SCROLL_INERTIA_INTERVAL_MS 10
 #define SCROLL_INERTIA_MAX_DURATION_MS 3000
@@ -262,9 +263,11 @@ struct iqs9151_data {
         .scroll_x = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_X_ENABLE),                     \
         .scroll_y = IS_ENABLED(CONFIG_INPUT_IQS9151_SCROLL_Y_ENABLE),                     \
         .two_finger_scroll_start_move = CONFIG_INPUT_IQS9151_2F_SCROLL_START_MOVE,        \
+        .scroll_speed_x10 = CONFIG_INPUT_IQS9151_SCROLL_SPEED_X10,                        \
         .pinch = IS_ENABLED(CONFIG_INPUT_IQS9151_2F_PINCH_ENABLE),                        \
         .two_finger_pinch_start_distance = CONFIG_INPUT_IQS9151_2F_PINCH_START_DISTANCE,  \
         .two_finger_pinch_wheel_gain_x10 = CONFIG_INPUT_IQS9151_2F_PINCH_WHEEL_GAIN_X10,  \
+        .cursor_speed_x10 = CONFIG_INPUT_IQS9151_CURSOR_SPEED_X10,                        \
         .cursor_inertia = IS_ENABLED(CONFIG_INPUT_IQS9151_CURSOR_INERTIA_ENABLE),         \
         .cursor_inertia_decay = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_DECAY,                \
         .cursor_inertia_recent_window_ms = CONFIG_INPUT_IQS9151_CURSOR_INERTIA_RECENT_WINDOW_MS, \
@@ -333,6 +336,20 @@ static int iqs9151_report_rel_event(const struct device *dev, uint16_t code,
     }
 #endif
     return input_report_rel(dev, code, value, sync, timeout);
+}
+
+static int16_t iqs9151_apply_gain_x10(int32_t value, uint8_t gain_x10) {
+    const int32_t scaled = (value * gain_x10) / IQS9151_RUNTIME_GAIN_DEN;
+
+    return (int16_t)CLAMP(scaled, INT16_MIN, INT16_MAX);
+}
+
+static int16_t iqs9151_apply_cursor_speed(int32_t value) {
+    return iqs9151_apply_gain_x10(value, iqs9151_runtime_config_get()->cursor_speed_x10);
+}
+
+static int16_t iqs9151_apply_scroll_speed(int32_t value) {
+    return iqs9151_apply_gain_x10(value, iqs9151_runtime_config_get()->scroll_speed_x10);
 }
 
 static const uint8_t iqs9151_alp_compensation[] = {
@@ -1865,24 +1882,16 @@ static void iqs9151_inertia_scroll_work_cb(struct k_work *work) {
     const bool active =
         iqs9151_inertia_step(&data->inertia_scroll, &params, &out_x, &out_y);
 
-    if (out_x > INT16_MAX) {
-        out_x = INT16_MAX;
-    } else if (out_x < INT16_MIN) {
-        out_x = INT16_MIN;
-    }
-    if (out_y > INT16_MAX) {
-        out_y = INT16_MAX;
-    } else if (out_y < INT16_MIN) {
-        out_y = INT16_MIN;
-    }
-
-    const bool have_x = out_x != 0;
-    const bool have_y = out_y != 0;
+    const int16_t scroll_x = iqs9151_apply_scroll_speed(out_x);
+    const int16_t scroll_y = iqs9151_apply_scroll_speed(out_y);
+    const bool have_x = scroll_x != 0;
+    const bool have_y = scroll_y != 0;
     if (have_x) {
-        iqs9151_report_rel_event(dev, INPUT_REL_HWHEEL, (int16_t)(-out_x), !have_y, K_NO_WAIT);
+        iqs9151_report_rel_event(dev, INPUT_REL_HWHEEL, (int16_t)(-scroll_x), !have_y,
+                                 K_NO_WAIT);
     }
     if (have_y) {
-        iqs9151_report_rel_event(dev, INPUT_REL_WHEEL, (int16_t)out_y, true, K_NO_WAIT);
+        iqs9151_report_rel_event(dev, INPUT_REL_WHEEL, scroll_y, true, K_NO_WAIT);
     }
 
     if (active) {
@@ -1923,24 +1932,15 @@ static void iqs9151_inertia_cursor_work_cb(struct k_work *work) {
     const bool active =
         iqs9151_inertia_step(&data->inertia_cursor, &params, &out_x, &out_y);
 
-    if (out_x > INT16_MAX) {
-        out_x = INT16_MAX;
-    } else if (out_x < INT16_MIN) {
-        out_x = INT16_MIN;
-    }
-    if (out_y > INT16_MAX) {
-        out_y = INT16_MAX;
-    } else if (out_y < INT16_MIN) {
-        out_y = INT16_MIN;
-    }
-
-    const bool have_x = out_x != 0;
-    const bool have_y = out_y != 0;
+    const int16_t cursor_x = iqs9151_apply_cursor_speed(out_x);
+    const int16_t cursor_y = iqs9151_apply_cursor_speed(out_y);
+    const bool have_x = cursor_x != 0;
+    const bool have_y = cursor_y != 0;
     if (have_x) {
-        iqs9151_report_rel_event(dev, INPUT_REL_X, (int16_t)out_x, !have_y, K_NO_WAIT);
+        iqs9151_report_rel_event(dev, INPUT_REL_X, cursor_x, !have_y, K_NO_WAIT);
     }
     if (have_y) {
-        iqs9151_report_rel_event(dev, INPUT_REL_Y, (int16_t)out_y, true, K_NO_WAIT);
+        iqs9151_report_rel_event(dev, INPUT_REL_Y, cursor_y, true, K_NO_WAIT);
     }
 
     if (active) {
@@ -2270,18 +2270,29 @@ static void iqs9151_report_frame_events(const struct device *dev,
             iqs9151_report_rel_event(dev, INPUT_REL_WHEEL, two_result->pinch_wheel, true, K_NO_WAIT);
         }
     } else if (two_result->scroll_active) {
-        const bool have_x = two_result->scroll_x != 0;
-        const bool have_y = two_result->scroll_y != 0;
+        const int16_t scroll_x = iqs9151_apply_scroll_speed(two_result->scroll_x);
+        const int16_t scroll_y = iqs9151_apply_scroll_speed(two_result->scroll_y);
+        const bool have_x = scroll_x != 0;
+        const bool have_y = scroll_y != 0;
         if (have_x) {
-            iqs9151_report_rel_event(dev, INPUT_REL_HWHEEL, (int16_t)(-two_result->scroll_x),
-                                     !have_y, K_NO_WAIT);
+            iqs9151_report_rel_event(dev, INPUT_REL_HWHEEL, (int16_t)(-scroll_x), !have_y,
+                                     K_NO_WAIT);
         }
         if (have_y) {
-            iqs9151_report_rel_event(dev, INPUT_REL_WHEEL, two_result->scroll_y, true, K_NO_WAIT);
+            iqs9151_report_rel_event(dev, INPUT_REL_WHEEL, scroll_y, true, K_NO_WAIT);
         }
     } else if (frame->finger_count == 1U && cursor_moving && !suppress_cursor_tail) {
-        iqs9151_report_rel_event(dev, INPUT_REL_X, frame->rel_x, false, K_NO_WAIT);
-        iqs9151_report_rel_event(dev, INPUT_REL_Y, frame->rel_y, true, K_NO_WAIT);
+        const int16_t cursor_x = iqs9151_apply_cursor_speed(frame->rel_x);
+        const int16_t cursor_y = iqs9151_apply_cursor_speed(frame->rel_y);
+        const bool have_x = cursor_x != 0;
+        const bool have_y = cursor_y != 0;
+
+        if (have_x) {
+            iqs9151_report_rel_event(dev, INPUT_REL_X, cursor_x, !have_y, K_NO_WAIT);
+        }
+        if (have_y) {
+            iqs9151_report_rel_event(dev, INPUT_REL_Y, cursor_y, true, K_NO_WAIT);
+        }
     }
 }
 
@@ -2650,10 +2661,14 @@ static bool iqs9151_runtime_config_is_valid(const struct iqs9151_runtime_config 
            config->three_finger_swipe_threshold <= 1000U &&
            config->two_finger_scroll_start_move >= 1U &&
            config->two_finger_scroll_start_move <= 2000U &&
+           config->scroll_speed_x10 >= 1U &&
+           config->scroll_speed_x10 <= 100U &&
            config->two_finger_pinch_start_distance >= 1U &&
            config->two_finger_pinch_start_distance <= 2000U &&
            config->two_finger_pinch_wheel_gain_x10 >= 1U &&
            config->two_finger_pinch_wheel_gain_x10 <= 100U &&
+           config->cursor_speed_x10 >= 1U &&
+           config->cursor_speed_x10 <= 100U &&
            config->cursor_inertia_decay <= 1000U &&
            config->cursor_inertia_recent_window_ms >= 1U &&
            config->cursor_inertia_recent_window_ms <= 500U &&

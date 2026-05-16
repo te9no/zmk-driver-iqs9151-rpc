@@ -61,6 +61,8 @@ export interface Iqs9151Config {
   scrollInertiaStaleGapMs: number;
   scrollInertiaMinSamples: number;
   scrollInertiaMinAvgSpeed: number;
+  cursorSpeedX10: number;
+  scrollSpeedX10: number;
 }
 
 export interface ConfigResponse {
@@ -269,6 +271,8 @@ function createBaseIqs9151Config(): Iqs9151Config {
     scrollInertiaStaleGapMs: 0,
     scrollInertiaMinSamples: 0,
     scrollInertiaMinAvgSpeed: 0,
+    cursorSpeedX10: 0,
+    scrollSpeedX10: 0,
   };
 }
 
@@ -393,6 +397,12 @@ export const Iqs9151Config: MessageFns<Iqs9151Config> = {
     }
     if (message.scrollInertiaMinAvgSpeed !== 0) {
       writer.uint32(320).uint32(message.scrollInertiaMinAvgSpeed);
+    }
+    if (message.cursorSpeedX10 !== 0) {
+      writer.uint32(328).uint32(message.cursorSpeedX10);
+    }
+    if (message.scrollSpeedX10 !== 0) {
+      writer.uint32(336).uint32(message.scrollSpeedX10);
     }
     return writer;
   },
@@ -724,6 +734,22 @@ export const Iqs9151Config: MessageFns<Iqs9151Config> = {
           message.scrollInertiaMinAvgSpeed = reader.uint32();
           continue;
         }
+        case 41: {
+          if (tag !== 328) {
+            break;
+          }
+
+          message.cursorSpeedX10 = reader.uint32();
+          continue;
+        }
+        case 42: {
+          if (tag !== 336) {
+            break;
+          }
+
+          message.scrollSpeedX10 = reader.uint32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -778,6 +804,8 @@ export const Iqs9151Config: MessageFns<Iqs9151Config> = {
     message.scrollInertiaStaleGapMs = object.scrollInertiaStaleGapMs ?? 0;
     message.scrollInertiaMinSamples = object.scrollInertiaMinSamples ?? 0;
     message.scrollInertiaMinAvgSpeed = object.scrollInertiaMinAvgSpeed ?? 0;
+    message.cursorSpeedX10 = object.cursorSpeedX10 ?? 0;
+    message.scrollSpeedX10 = object.scrollSpeedX10 ?? 0;
     return message;
   },
 };

@@ -251,6 +251,14 @@ config INPUT_IQS9151_2F_SCROLL_START_MOVE
     help
       Movement threshold to start 2F scroll mode (driver-side).
 
+config INPUT_IQS9151_SCROLL_SPEED_X10
+    int "IQS9151 scroll speed gain (x10)"
+    range 1 100
+    default 10
+    help
+      Gain for two-finger scroll REL_WHEEL/REL_HWHEEL output.
+      10 = 1.0x, 20 = 2.0x.
+
 config INPUT_IQS9151_SCROLL_INERTIA_ENABLE
     bool "IQS9151 scroll inertia enable"
     default y
@@ -316,6 +324,14 @@ config INPUT_IQS9151_2F_PINCH_WHEEL_GAIN_X10
     help
       Gain for 2F pinch REL_WHEEL output inside the driver.
       10 = 1.0x, 20 = 2.0x, 5 = 0.5x.
+
+config INPUT_IQS9151_CURSOR_SPEED_X10
+    int "IQS9151 cursor speed gain (x10)"
+    range 1 100
+    default 10
+    help
+      Gain for one-finger cursor REL_X/REL_Y output.
+      10 = 1.0x, 20 = 2.0x.
 
 config INPUT_IQS9151_3F_TAP_ENABLE
     bool "IQS9151 three-finger tap enable"

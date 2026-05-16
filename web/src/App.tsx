@@ -35,8 +35,10 @@ type NumericField = keyof Pick<
   | "threeFingerTapdragGapMaxMs"
   | "threeFingerSwipeThreshold"
   | "twoFingerScrollStartMove"
+  | "scrollSpeedX10"
   | "twoFingerPinchStartDistance"
   | "twoFingerPinchWheelGainX10"
+  | "cursorSpeedX10"
   | "cursorInertiaDecay"
   | "cursorInertiaRecentWindowMs"
   | "cursorInertiaStaleGapMs"
@@ -88,8 +90,10 @@ const numericFields: Array<{
   { key: "threeFingerTapdragGapMaxMs", label: "3F tap-drag gap", min: 1, max: 1000, help: "Maximum gap before three-finger tap-drag" },
   { key: "threeFingerSwipeThreshold", label: "3F swipe threshold", min: 0, max: 1000, help: "Distance threshold for three-finger swipe" },
   { key: "twoFingerScrollStartMove", label: "2F scroll start", min: 1, max: 2000, help: "Movement before two-finger scroll starts" },
+  { key: "scrollSpeedX10", label: "Scroll speed x10", min: 1, max: 100, help: "Scroll movement gain in tenths; 10 = 1.0x" },
   { key: "twoFingerPinchStartDistance", label: "Pinch start distance", min: 1, max: 2000, help: "Distance change before pinch starts" },
   { key: "twoFingerPinchWheelGainX10", label: "Pinch gain x10", min: 1, max: 100, help: "Pinch wheel gain in tenths" },
+  { key: "cursorSpeedX10", label: "Cursor speed x10", min: 1, max: 100, help: "Cursor movement gain in tenths; 10 = 1.0x" },
   { key: "cursorInertiaDecay", label: "Cursor inertia decay", min: 0, max: 1000, help: "Cursor inertia decay numerator" },
   { key: "cursorInertiaRecentWindowMs", label: "Cursor recent window", min: 1, max: 500, help: "Recent motion window for cursor inertia" },
   { key: "cursorInertiaStaleGapMs", label: "Cursor stale gap", min: 1, max: 500, help: "Maximum gap between cursor samples" },
@@ -142,9 +146,11 @@ const demoConfig: Iqs9151Config = {
   scrollX: true,
   scrollY: true,
   twoFingerScrollStartMove: 50,
+  scrollSpeedX10: 10,
   pinch: true,
   twoFingerPinchStartDistance: 80,
   twoFingerPinchWheelGainX10: 40,
+  cursorSpeedX10: 10,
   cursorInertia: true,
   cursorInertiaDecay: 970,
   cursorInertiaRecentWindowMs: 60,

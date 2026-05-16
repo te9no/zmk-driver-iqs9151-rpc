@@ -69,7 +69,11 @@ static bool config_is_valid(const struct iqs9151_runtime_config *config) {
            config->ati_target_count <= 1000U &&
            config->dynamic_filter_bottom_speed <= 2047U &&
            config->dynamic_filter_top_speed <= 2047U &&
-           config->dynamic_filter_bottom_beta <= 255U;
+           config->dynamic_filter_bottom_beta <= 255U &&
+           config->scroll_speed_x10 >= 1U &&
+           config->scroll_speed_x10 <= 100U &&
+           config->cursor_speed_x10 >= 1U &&
+           config->cursor_speed_x10 <= 100U;
 }
 
 static void raise_split_response_chunks(uint8_t seq, int status,

@@ -29,9 +29,11 @@ struct iqs9151_runtime_config {
     bool scroll_x;
     bool scroll_y;
     uint16_t two_finger_scroll_start_move;
+    uint8_t scroll_speed_x10;
     bool pinch;
     uint16_t two_finger_pinch_start_distance;
     uint8_t two_finger_pinch_wheel_gain_x10;
+    uint8_t cursor_speed_x10;
     bool cursor_inertia;
     uint16_t cursor_inertia_decay;
     uint16_t cursor_inertia_recent_window_ms;
