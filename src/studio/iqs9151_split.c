@@ -293,7 +293,9 @@ static int call_split_iqs9151(uint8_t type, const struct iqs9151_runtime_config 
         return 0;
     }
     if (split_response_len != sizeof(*out)) {
-        return -EIO;
+        LOG_WRN("IQS9151 split config size mismatch: got %u, expected %zu",
+                split_response_len, sizeof(*out));
+        return -EMSGSIZE;
     }
 
     memcpy(out, split_response_buf, sizeof(*out));

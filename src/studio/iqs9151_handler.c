@@ -29,6 +29,17 @@ static void set_error_response(zmk_iqs9151_Response *resp, const char *message) 
     resp->response_type.error = err;
 }
 
+static const char *split_error_message(int ret, const char *fallback) {
+    switch (ret) {
+    case -ETIMEDOUT:
+        return "split IQS9151 request timed out";
+    case -EMSGSIZE:
+        return "split IQS9151 firmware mismatch; flash both halves with the latest firmware";
+    default:
+        return fallback;
+    }
+}
+
 static zmk_iqs9151_Iqs9151Config
 runtime_to_proto(const struct iqs9151_runtime_config *runtime) {
     zmk_iqs9151_Iqs9151Config config = zmk_iqs9151_Iqs9151Config_init_zero;
@@ -197,8 +208,7 @@ static void handle_get_config_request(zmk_iqs9151_Response *resp) {
 
     if (ret != 0) {
         LOG_WRN("Failed to read split IQS9151 config: %d", ret);
-        set_error_response(resp, ret == -ETIMEDOUT ? "split IQS9151 request timed out"
-                                                   : "failed to read split IQS9151 config");
+        set_error_response(resp, split_error_message(ret, "failed to read split IQS9151 config"));
         return;
     }
 
@@ -244,8 +254,7 @@ static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
 
     if (ret != 0) {
         LOG_WRN("Failed to apply split IQS9151 config: %d", ret);
-        set_error_response(resp, ret == -ETIMEDOUT ? "split IQS9151 request timed out"
-                                                   : "failed to apply split IQS9151 config");
+        set_error_response(resp, split_error_message(ret, "failed to apply split IQS9151 config"));
         return;
     }
 
@@ -273,8 +282,7 @@ static void handle_reset_config_request(zmk_iqs9151_Response *resp) {
 
     if (ret != 0) {
         LOG_WRN("Failed to reset split IQS9151 config: %d", ret);
-        set_error_response(resp, ret == -ETIMEDOUT ? "split IQS9151 request timed out"
-                                                   : "failed to reset split IQS9151 config");
+        set_error_response(resp, split_error_message(ret, "failed to reset split IQS9151 config"));
         return;
     }
 
