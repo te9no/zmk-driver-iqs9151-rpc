@@ -5,7 +5,7 @@ rsource "input_processors/Kconfig"
 config INPUT_IQS9151_STUDIO_RPC
     bool "Enable IQS9151 custom Studio RPC"
     depends on INPUT_IQS9151
-    depends on ZMK_STUDIO
+    depends on ZMK_STUDIO_RPC
     help
       Enable the IQS9151 custom Studio RPC subsystem using ZMK custom
       Studio RPC. The subsystem identifier is zmk__iqs9151.

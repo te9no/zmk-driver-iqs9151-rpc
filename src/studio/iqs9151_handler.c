@@ -5,7 +5,7 @@
 #include <zmk/iqs9151_runtime.h>
 #include <zmk/studio/custom.h>
 
-#include <zephyr/errno.h>
+#include <errno.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);

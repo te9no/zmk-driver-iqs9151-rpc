@@ -22,9 +22,15 @@ if(CONFIG_INPUT_IQS9151_STUDIO_RPC)
   file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto)
 
   nanopb_generate_cpp(proto_srcs proto_hdrs RELPATH ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILES})
-  target_include_directories(${ZEPHYR_CURRENT_LIBRARY} PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+  target_include_directories(${ZEPHYR_CURRENT_LIBRARY} PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${NANOPB_INCLUDE_DIRS}
+  )
   target_sources(${ZEPHYR_CURRENT_LIBRARY} PRIVATE ${proto_srcs} ${proto_hdrs})
 
-  target_include_directories(app PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/proto)
+  target_include_directories(app PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}/proto
+    ${NANOPB_INCLUDE_DIRS}
+  )
   add_dependencies(app ${ZEPHYR_CURRENT_LIBRARY})
 endif()
