@@ -195,6 +195,9 @@ small {
   border-radius: 12px;
   padding: 0.6rem 0.7rem;
   background: #fffdf8;
+  color: var(--ink);
+  caret-color: var(--accent-dark);
+  -webkit-text-fill-color: var(--ink);
 }
 
 .toggle-grid {
