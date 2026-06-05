@@ -8,6 +8,8 @@
   --accent-dark: #883713;
   --good: #176b45;
   --warn: #a05a00;
+  --info: #245b8b;
+  --bad: #991b1b;
   --shadow: rgba(69, 45, 20, 0.12);
   color: var(--ink);
   background: #efe8d4;
@@ -154,14 +156,20 @@ button:disabled {
   border-radius: 14px;
 }
 
-.status {
+.status.success {
   background: rgba(23, 107, 69, 0.1);
   color: var(--good);
 }
 
+.status.info {
+  background: rgba(36, 91, 139, 0.1);
+  color: var(--info);
+}
+
+.status.error,
 .error {
   background: rgba(185, 28, 28, 0.1);
-  color: #991b1b;
+  color: var(--bad);
 }
 
 .grid {

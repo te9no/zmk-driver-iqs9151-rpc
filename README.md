@@ -167,8 +167,8 @@ WebUI開発時は `http://localhost:5173` に一時変更してください。
 
 ```sh
 cd .west-workspace/modules/zmk-driver-iqs9151-rpc/web
-npm install
-npm run dev
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
 production build:
@@ -183,6 +183,9 @@ npm run build
 ```sh
 npm run generate
 ```
+
+WebUIの `Load` / `Apply` / `Reset Defaults` は直列化され、RPC timeoutも設定されています。
+split peripheralやcustom subsystemが応答しない場合でも、UIは恒久的なbusy状態にならず、エラー表示へ戻ります。
 
 ### デモモード
 

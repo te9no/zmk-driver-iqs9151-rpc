@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { connect as serialConnect } from "@zmkfirmware/zmk-studio-ts-client/transport/serial";
 import { connect as gattConnect } from "@zmkfirmware/zmk-studio-ts-client/transport/gatt";
@@ -15,6 +15,9 @@ import {
 
 export const SUBSYSTEM_IDENTIFIER = "dya__iqs9151";
 const SUBSYSTEM_CANDIDATES = [SUBSYSTEM_IDENTIFIER, "zmk__iqs9151", "iqs9151"];
+const RPC_TIMEOUT_MS = 7000;
+
+type StatusKind = "info" | "success" | "error";
 
 type NumericField = keyof Pick<
   Iqs9151Config,
@@ -223,7 +226,9 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
   const zmkApp = useContext(ZMKAppContext);
   const [config, setConfig] = useState<Iqs9151Config | null>(demoMode ? demoConfig : null);
   const [status, setStatus] = useState(demoMode ? "Demo config loaded" : "");
+  const [statusKind, setStatusKind] = useState<StatusKind>(demoMode ? "success" : "info");
   const [busy, setBusy] = useState(false);
+  const operationRef = useRef<string | null>(null);
 
   const subsystem = useMemo(() => {
     if (!zmkApp || demoMode) return null;
@@ -236,13 +241,35 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
 
   const availableSubsystems = ((zmkApp?.state.connection as any)?.subsystems ?? []) as Array<Record<string, unknown>>;
 
+  const setStatusMessage = (message: string, kind: StatusKind = "info") => {
+    setStatus(message);
+    setStatusKind(kind);
+  };
+
+  const startOperation = (label: string) => {
+    if (operationRef.current) {
+      setStatusMessage(`${operationRef.current} is still running. Please wait a moment.`);
+      return false;
+    }
+
+    operationRef.current = label;
+    setBusy(true);
+    setStatusMessage(label);
+    return true;
+  };
+
+  const finishOperation = () => {
+    operationRef.current = null;
+    setBusy(false);
+  };
+
   const callRPC = async (request: Request) => {
     if (!zmkApp?.state.connection || !subsystem) {
       throw new Error("IQS9151 subsystem is not available");
     }
     const service = new ZMKCustomSubsystem(zmkApp.state.connection, subsystem.index);
     const payload = Request.encode(Request.create(request)).finish();
-    const responsePayload = await service.callRPC(payload);
+    const responsePayload = await service.callRPC(payload, { timeout: RPC_TIMEOUT_MS });
     if (!responsePayload) throw new Error("Empty RPC response");
     const response = Response.decode(responsePayload);
     if (response.error) throw new Error(response.error.message || "RPC error");
@@ -252,11 +279,10 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
   const loadConfig = async () => {
     if (demoMode) {
       setConfig(demoConfig);
-      setStatus("Demo config loaded");
+      setStatusMessage("Demo config loaded", "success");
       return;
     }
-    setBusy(true);
-    setStatus("");
+    if (!startOperation("Loading IQS9151 config...")) return;
     try {
       const response = await callRPC({ getConfig: {} });
       const loadedConfig = response.config?.config;
@@ -264,22 +290,21 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
         throw new Error("IQS9151 config response did not include parameters");
       }
       setConfig(loadedConfig);
-      setStatus("Loaded current IQS9151 config");
+      setStatusMessage("Loaded current IQS9151 config", "success");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to load config");
+      setStatusMessage(error instanceof Error ? error.message : "Failed to load config", "error");
     } finally {
-      setBusy(false);
+      finishOperation();
     }
   };
 
   const applyConfig = async () => {
     if (!config) return;
     if (demoMode) {
-      setStatus("Demo config applied locally");
+      setStatusMessage("Demo config applied locally", "success");
       return;
     }
-    setBusy(true);
-    setStatus("");
+    if (!startOperation("Applying IQS9151 config...")) return;
     try {
       const response = await callRPC({ setConfig: { config } });
       const appliedConfig = response.setConfig?.config;
@@ -287,22 +312,21 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
         throw new Error("IQS9151 apply response did not include parameters");
       }
       setConfig(appliedConfig);
-      setStatus("Applied IQS9151 config");
+      setStatusMessage("Applied IQS9151 config", "success");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to apply config");
+      setStatusMessage(error instanceof Error ? error.message : "Failed to apply config", "error");
     } finally {
-      setBusy(false);
+      finishOperation();
     }
   };
 
   const resetConfig = async () => {
     if (demoMode) {
       setConfig(demoConfig);
-      setStatus("Demo config reset");
+      setStatusMessage("Demo config reset", "success");
       return;
     }
-    setBusy(true);
-    setStatus("");
+    if (!startOperation("Resetting IQS9151 config...")) return;
     try {
       const response = await callRPC({ resetConfig: {} });
       const resetConfig = response.resetConfig?.config;
@@ -310,11 +334,11 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
         throw new Error("IQS9151 reset response did not include parameters");
       }
       setConfig(resetConfig);
-      setStatus("Reset IQS9151 config to firmware defaults");
+      setStatusMessage("Reset IQS9151 config to firmware defaults", "success");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to reset config");
+      setStatusMessage(error instanceof Error ? error.message : "Failed to reset config", "error");
     } finally {
-      setBusy(false);
+      finishOperation();
     }
   };
 
@@ -358,7 +382,7 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
         </button>
       </div>
 
-      {status && <p className="status">{status}</p>}
+      {status && <p className={`status ${statusKind}`}>{status}</p>}
 
       {config && (
         <>
