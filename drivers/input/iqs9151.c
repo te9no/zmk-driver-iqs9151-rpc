@@ -27,8 +27,14 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 
 #define IQS9151_I2C_CHUNK_SIZE 30
 #define IQS9151_RSTD_DELAY_MS 100
+#define IQS9151_READY_TIMEOUT_MS 500
+#define IQS9151_PRODUCT_READ_RETRIES 5
+#define IQS9151_PRODUCT_READ_RETRY_DELAY_MS 50
 #define IQS9151_ATI_TIMEOUT_MS 1000
 #define IQS9151_ATI_POLL_INTERVAL_MS 10
+#define IQS9151_DIAG_LOG_LIMIT 16
+#define IQS9151_WORK_QUEUE_STACK_SIZE CONFIG_INPUT_THREAD_STACK_SIZE
+#define IQS9151_WORK_QUEUE_PRIORITY 9
 #define INERTIA_FP_SHIFT 8
 #define EMA_FP_SHIFT INERTIA_FP_SHIFT
 #define EMA_ALPHA_DEN (1 << EMA_FP_SHIFT)
@@ -234,7 +240,31 @@ struct iqs9151_data {
     struct iqs9151_finger_history_entry finger_history[IQS9151_FINGER_HISTORY_SIZE];
     uint8_t finger_history_head;
     uint8_t finger_history_count;
+    uint32_t irq_count;
+    uint32_t work_count;
+    uint32_t frame_count;
+    uint32_t report_count;
+    uint32_t inertia_log_count;
 };
+
+K_THREAD_STACK_DEFINE(iqs9151_work_q_stack, IQS9151_WORK_QUEUE_STACK_SIZE);
+static struct k_work_q iqs9151_work_q;
+static bool iqs9151_work_q_started;
+
+static void iqs9151_work_queue_start_once(void) {
+    static const struct k_work_queue_config queue_config = {
+        .name = "IQS9151 Work Queue",
+    };
+
+    if (iqs9151_work_q_started) {
+        return;
+    }
+
+    k_work_queue_start(&iqs9151_work_q, iqs9151_work_q_stack,
+                       K_THREAD_STACK_SIZEOF(iqs9151_work_q_stack),
+                       IQS9151_WORK_QUEUE_PRIORITY, &queue_config);
+    iqs9151_work_q_started = true;
+}
 
 #define IQS9151_DEFAULT_RUNTIME_CONFIG                                                    \
     {                                                                                     \
@@ -302,6 +332,14 @@ static struct {
 
 static int iqs9151_report_key_event(const struct device *dev, uint16_t code,
                                     int32_t value, bool sync, k_timeout_t timeout) {
+    struct iqs9151_data *data = dev->data;
+
+    if (data->report_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("report #%u key code=0x%04x value=%d sync=%d", data->report_count,
+                code, value, sync);
+    }
+    data->report_count++;
+
 #ifdef CONFIG_INPUT_IQS9151_TEST
     if (iqs9151_test_hook.hook != NULL) {
         const struct iqs9151_test_event event = {
@@ -321,6 +359,14 @@ static int iqs9151_report_key_event(const struct device *dev, uint16_t code,
 
 static int iqs9151_report_rel_event(const struct device *dev, uint16_t code,
                                     int32_t value, bool sync, k_timeout_t timeout) {
+    struct iqs9151_data *data = dev->data;
+
+    if (data->report_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("report #%u rel code=0x%04x value=%d sync=%d", data->report_count,
+                code, value, sync);
+    }
+    data->report_count++;
+
 #ifdef CONFIG_INPUT_IQS9151_TEST
     if (iqs9151_test_hook.hook != NULL) {
         const struct iqs9151_test_event event = {
@@ -649,32 +695,79 @@ static int iqs9151_read_u16(const struct iqs9151_config *cfg, uint16_t reg, uint
     return 0;
 }
 
-static int iqs9151_update_bits_u16(const struct iqs9151_config *cfg, uint16_t reg,
+static void iqs9151_wait_for_ready(const struct device *dev, uint16_t timeout_ms);
+
+static int iqs9151_update_bits_u16(const struct device *dev, const struct iqs9151_config *cfg,
+                                   uint16_t reg,
                                    uint16_t mask, uint16_t value) {
     uint16_t current;
-    int ret = iqs9151_read_u16(cfg, reg, &current);
+    int ret;
 
+    iqs9151_wait_for_ready(dev, IQS9151_READY_TIMEOUT_MS);
+    ret = iqs9151_read_u16(cfg, reg, &current);
     if (ret != 0) {
+        LOG_ERR("I2C read 0x%04x failed before update-bits (%d)", reg, ret);
         return ret;
     }
 
     current = (uint16_t)((current & ~mask) | (value & mask));
-    return iqs9151_write_u16(cfg, reg, current);
+    iqs9151_wait_for_ready(dev, IQS9151_READY_TIMEOUT_MS);
+    ret = iqs9151_write_u16(cfg, reg, current);
+    if (ret != 0) {
+        LOG_ERR("I2C write 0x%04x failed after update-bits (%d)", reg, ret);
+    }
+    return ret;
 }
 
 static void iqs9151_wait_for_ready(const struct device *dev, uint16_t timeout_ms) {
     const struct iqs9151_config *cfg = dev->config;
     uint16_t elapsed = 0;
+    int ready = gpio_pin_get_dt(&cfg->irq_gpio);
 
-    while (!gpio_pin_get_dt(&cfg->irq_gpio) && elapsed < timeout_ms) {
+    while (ready == 0 && elapsed < timeout_ms) {
         k_sleep(K_MSEC(1));
         elapsed++;
+        ready = gpio_pin_get_dt(&cfg->irq_gpio);
+    }
+
+    if (ready < 0) {
+        LOG_ERR("RDY read failed (%d)", ready);
+        return;
     }
 
     if (elapsed >= timeout_ms) {
-        LOG_WRN("RDY timeout after %dms", timeout_ms);
+        int raw = gpio_pin_get_raw(cfg->irq_gpio.port, cfg->irq_gpio.pin);
+
+        LOG_WRN("RDY timeout after %dms (logical=%d raw=%d flags=0x%04x)",
+                timeout_ms, ready, raw, cfg->irq_gpio.dt_flags);
     }
-    LOG_DBG("IRQGPIO=%d,TIME=%dms", gpio_pin_get_dt(&cfg->irq_gpio), elapsed);
+    LOG_DBG("IRQGPIO=%d,TIME=%dms", ready, elapsed);
+}
+
+static int iqs9151_write_u16_when_ready(const struct device *dev,
+                                        const struct iqs9151_config *cfg,
+                                        uint16_t reg, uint16_t value) {
+    int ret;
+
+    iqs9151_wait_for_ready(dev, IQS9151_READY_TIMEOUT_MS);
+    ret = iqs9151_write_u16(cfg, reg, value);
+    if (ret != 0) {
+        LOG_ERR("I2C write 0x%04x failed (%d)", reg, ret);
+    }
+    return ret;
+}
+
+static int iqs9151_i2c_write_when_ready(const struct device *dev,
+                                        const struct iqs9151_config *cfg,
+                                        uint16_t reg, const uint8_t *buf, size_t len) {
+    int ret;
+
+    iqs9151_wait_for_ready(dev, IQS9151_READY_TIMEOUT_MS);
+    ret = iqs9151_i2c_write(cfg, reg, buf, len);
+    if (ret != 0) {
+        LOG_ERR("I2C write 0x%04x len %zu failed (%d)", reg, len, ret);
+    }
+    return ret;
 }
 
 static int iqs9151_write_chunks(const struct device *dev, const struct iqs9151_config *cfg
@@ -698,10 +791,24 @@ static int iqs9151_write_chunks(const struct device *dev, const struct iqs9151_c
 static int iqs9151_check_product_number(const struct device *dev) {
     const struct iqs9151_config *cfg = dev->config;
     uint8_t product[2];
-    int ret;
-    
-    ret = iqs9151_i2c_read(cfg, IQS9151_ADDR_PRODUCT_NUMBER, product, sizeof(product));
+    int ret = -EIO;
+
+    for (int attempt = 1; attempt <= IQS9151_PRODUCT_READ_RETRIES; attempt++) {
+        iqs9151_wait_for_ready(dev, IQS9151_READY_TIMEOUT_MS);
+
+        ret = iqs9151_i2c_read(cfg, IQS9151_ADDR_PRODUCT_NUMBER, product, sizeof(product));
+        if (ret == 0) {
+            break;
+        }
+
+        LOG_WRN("product number read failed attempt %d/%d (%d)", attempt,
+                IQS9151_PRODUCT_READ_RETRIES, ret);
+        k_sleep(K_MSEC(IQS9151_PRODUCT_READ_RETRY_DELAY_MS));
+    }
+
     if (ret != 0) {
+        LOG_ERR("product number read failed after %d attempts (%d)",
+                IQS9151_PRODUCT_READ_RETRIES, ret);
         return ret;
     }
 
@@ -1886,6 +1993,11 @@ static void iqs9151_inertia_scroll_work_cb(struct k_work *work) {
     const int16_t scroll_y = iqs9151_apply_scroll_speed(out_y);
     const bool have_x = scroll_x != 0;
     const bool have_y = scroll_y != 0;
+    if (data->inertia_log_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("scroll inertia step #%u active=%d out=(%d,%d) scroll=(%d,%d)",
+                data->inertia_log_count, active, out_x, out_y, scroll_x, scroll_y);
+        data->inertia_log_count++;
+    }
     if (have_x) {
         iqs9151_report_rel_event(dev, INPUT_REL_HWHEEL, (int16_t)(-scroll_x), !have_y,
                                  K_NO_WAIT);
@@ -1936,6 +2048,11 @@ static void iqs9151_inertia_cursor_work_cb(struct k_work *work) {
     const int16_t cursor_y = iqs9151_apply_cursor_speed(out_y);
     const bool have_x = cursor_x != 0;
     const bool have_y = cursor_y != 0;
+    if (data->inertia_log_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("cursor inertia step #%u active=%d out=(%d,%d) cursor=(%d,%d)",
+                data->inertia_log_count, active, out_x, out_y, cursor_x, cursor_y);
+        data->inertia_log_count++;
+    }
     if (have_x) {
         iqs9151_report_rel_event(dev, INPUT_REL_X, cursor_x, !have_y, K_NO_WAIT);
     }
@@ -2228,6 +2345,11 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
                                               &seed_vx_fp, &seed_vy_fp)) {
             iqs9151_inertia_start(&data->inertia_cursor, &data->inertia_cursor_work,
                                   &cursor_params, seed_vx_fp, seed_vy_fp);
+            if (data->inertia_cursor.active &&
+                data->inertia_log_count < IQS9151_DIAG_LOG_LIMIT) {
+                LOG_INF("cursor inertia start seed=(%d,%d)", seed_vx_fp, seed_vy_fp);
+                data->inertia_log_count++;
+            }
         }
         iqs9151_ema_reset(&data->cursor_ema_x_fp, &data->cursor_ema_y_fp);
         iqs9151_motion_history_reset(&data->cursor_motion_history);
@@ -2242,6 +2364,11 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
                                               &seed_vx_fp, &seed_vy_fp)) {
             iqs9151_inertia_start(&data->inertia_scroll, &data->inertia_scroll_work,
                                   &scroll_params, seed_vx_fp, seed_vy_fp);
+            if (data->inertia_scroll.active &&
+                data->inertia_log_count < IQS9151_DIAG_LOG_LIMIT) {
+                LOG_INF("scroll inertia start seed=(%d,%d)", seed_vx_fp, seed_vy_fp);
+                data->inertia_log_count++;
+            }
         }
         iqs9151_ema_reset(&data->scroll_ema_x_fp, &data->scroll_ema_y_fp);
         iqs9151_motion_history_reset(&data->scroll_motion_history);
@@ -2359,18 +2486,47 @@ static void iqs9151_work_cb(struct k_work *work) {
     int ret;
     const int64_t now_ms = k_uptime_get();
 
+    if (data->work_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("work #%u reading frame", data->work_count);
+    }
+    data->work_count++;
+
     ret = iqs9151_read_frame(cfg, &frame);
     if (ret != 0) {
         LOG_ERR("frame read failed (%d)", ret);
         return;
     }
 
+    if (data->frame_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("frame #%u rel=(%d,%d) info=0x%04x tp=0x%04x fingers=%u f1=(%u,%u) f2=(%u,%u)",
+                data->frame_count, frame.rel_x, frame.rel_y, frame.info_flags,
+                frame.trackpad_flags, frame.finger_count, frame.finger1_x,
+                frame.finger1_y, frame.finger2_x, frame.finger2_y);
+    }
+    data->frame_count++;
+
     iqs9151_process_frame(data, &frame, now_ms);
 }
 
 static void iqs9151_gpio_cb(const struct device *port, struct gpio_callback *cb, uint32_t pins) {
     struct iqs9151_data *data = CONTAINER_OF(cb, struct iqs9151_data, gpio_cb);
-    k_work_submit(&data->work);
+    const struct iqs9151_config *cfg = data->dev->config;
+    int logical = -EINVAL;
+    int raw = -EINVAL;
+    int ret;
+
+    if (data->irq_count < IQS9151_DIAG_LOG_LIMIT) {
+        logical = gpio_pin_get_dt(&cfg->irq_gpio);
+        raw = gpio_pin_get_raw(cfg->irq_gpio.port, cfg->irq_gpio.pin);
+    }
+
+    ret = k_work_submit_to_queue(&iqs9151_work_q, &data->work);
+
+    if (data->irq_count < IQS9151_DIAG_LOG_LIMIT) {
+        LOG_INF("irq #%u pins=0x%08x logical=%d raw=%d submit=%d", data->irq_count,
+                pins, logical, raw, ret);
+    }
+    data->irq_count++;
 }
 
 static int iqs9151_set_interrupt(const struct device *dev, const bool en) {
@@ -2580,7 +2736,7 @@ static int iqs9151_apply_runtime_config(const struct device *dev,
         rotate_bits ^= IQS9151_TRACKPAD_SETTING_FLIP_Y;
     }
 
-    ret = iqs9151_update_bits_u16(cfg, IQS9151_ADDR_TRACKPAD_SETTINGS,
+    ret = iqs9151_update_bits_u16(dev, cfg, IQS9151_ADDR_TRACKPAD_SETTINGS,
                                   IQS9151_TRACKPAD_SETTING_FLIP_X |
                                       IQS9151_TRACKPAD_SETTING_FLIP_Y |
                                       IQS9151_TRACKPAD_SETTING_SWITCH_XY,
@@ -2590,41 +2746,43 @@ static int iqs9151_apply_runtime_config(const struct device *dev,
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_X_RESOLUTION, runtime_config->resolution_x);
+    ret = iqs9151_write_u16_when_ready(dev, cfg, IQS9151_ADDR_X_RESOLUTION,
+                                       runtime_config->resolution_x);
     if (ret != 0) {
         LOG_ERR("Failed to apply X resolution (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_Y_RESOLUTION, runtime_config->resolution_y);
+    ret = iqs9151_write_u16_when_ready(dev, cfg, IQS9151_ADDR_Y_RESOLUTION,
+                                       runtime_config->resolution_y);
     if (ret != 0) {
         LOG_ERR("Failed to apply Y resolution (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_TRACKPAD_ATI_TARGET,
-                            runtime_config->ati_target_count);
+    ret = iqs9151_write_u16_when_ready(dev, cfg, IQS9151_ADDR_TRACKPAD_ATI_TARGET,
+                                       runtime_config->ati_target_count);
     if (ret != 0) {
         LOG_ERR("Failed to apply ATI target (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_SPEED,
-                            runtime_config->dynamic_filter_bottom_speed);
+    ret = iqs9151_write_u16_when_ready(dev, cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_SPEED,
+                                       runtime_config->dynamic_filter_bottom_speed);
     if (ret != 0) {
         LOG_ERR("Failed to apply dynamic filter bottom speed (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_write_u16(cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_TOP_SPEED,
-                            runtime_config->dynamic_filter_top_speed);
+    ret = iqs9151_write_u16_when_ready(dev, cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_TOP_SPEED,
+                                       runtime_config->dynamic_filter_top_speed);
     if (ret != 0) {
         LOG_ERR("Failed to apply dynamic filter top speed (%d)", ret);
         return ret;
     }
 
-    ret = iqs9151_i2c_write(cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_BETA,
-                            &runtime_config->dynamic_filter_bottom_beta, 1);
+    ret = iqs9151_i2c_write_when_ready(dev, cfg, IQS9151_ADDR_XY_DYNAMIC_FILTER_BOTTOM_BETA,
+                                       &runtime_config->dynamic_filter_bottom_beta, 1);
     if (ret != 0) {
         LOG_ERR("Failed to apply dynamic filter bottom beta (%d)", ret);
         return ret;
@@ -2717,6 +2875,8 @@ static int iqs9151_init(const struct device *dev) {
     data->dev = dev;
     iqs9151_runtime_dev = dev;
 
+    iqs9151_work_queue_start_once();
+
     LOG_DBG("Initialization Start");
 
     if (!device_is_ready(cfg->i2c.bus)) {
@@ -2737,8 +2897,6 @@ static int iqs9151_init(const struct device *dev) {
         return ret;
     }
 
-    iqs9151_wait_for_ready(dev, 500);
-    
     // Check Product Number
     ret = iqs9151_check_product_number(dev);
     if (ret != 0) {
@@ -2845,7 +3003,22 @@ static int iqs9151_init(const struct device *dev) {
     LOG_DBG("Set Event Mode complete complete");
 
     // start IRQ
-    iqs9151_set_interrupt(dev, true);
+    ret = iqs9151_set_interrupt(dev, true);
+    if (ret < 0) {
+        return ret;
+    }
+
+    int irq_logical = gpio_pin_get_dt(&cfg->irq_gpio);
+    int irq_raw = gpio_pin_get_raw(cfg->irq_gpio.port, cfg->irq_gpio.pin);
+
+    LOG_INF("interrupt enabled logical=%d raw=%d flags=0x%04x", irq_logical,
+            irq_raw, cfg->irq_gpio.dt_flags);
+    if (irq_logical > 0) {
+        LOG_INF("DR/RDY already active after init; scheduling initial frame read");
+        ret = k_work_submit_to_queue(&iqs9151_work_q, &data->work);
+        LOG_INF("initial frame read submit=%d", ret);
+    }
+
     LOG_DBG("Initialization complete");
     return 0;
 }

@@ -95,7 +95,7 @@
 
 /* Sampling Periods and Timing */
 /* Memory Map Position 0x11A2 - 0x11BB */
-#define ACTIVE_MODE_SAMPLING_PERIOD_0            0x0A // 0x0A
+#define ACTIVE_MODE_SAMPLING_PERIOD_0            0x1E // 30ms; avoid flooding split BLE input notifications
 #define ACTIVE_MODE_SAMPLING_PERIOD_1            0x00
 #define IDLE_TOUCH_MODE_SAMPLING_PERIOD_0        0x32
 #define IDLE_TOUCH_MODE_SAMPLING_PERIOD_1        0x00
