@@ -29,6 +29,8 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 #define IQS9151_RSTD_DELAY_MS 100
 #define IQS9151_ATI_TIMEOUT_MS 1000
 #define IQS9151_ATI_POLL_INTERVAL_MS 10
+#define IQS9151_PRODUCT_NUMBER_RETRIES 5
+#define IQS9151_PRODUCT_NUMBER_RETRY_DELAY_MS 50
 #define INERTIA_FP_SHIFT 8
 #define EMA_FP_SHIFT INERTIA_FP_SHIFT
 #define EMA_ALPHA_DEN (1 << EMA_FP_SHIFT)
@@ -190,6 +192,9 @@ struct iqs9151_data {
     const struct device *dev;
     struct gpio_callback gpio_cb;
     struct k_work work;
+#if IS_ENABLED(CONFIG_INPUT_IQS9151_POLLING_ENABLE)
+    struct k_work_delayable poll_work;
+#endif
     struct k_work_delayable one_finger_click_work;
     struct k_work_delayable two_finger_click_work;
     struct k_work_delayable three_finger_click_work;
@@ -662,19 +667,40 @@ static int iqs9151_update_bits_u16(const struct iqs9151_config *cfg, uint16_t re
     return iqs9151_write_u16(cfg, reg, current);
 }
 
-static void iqs9151_wait_for_ready(const struct device *dev, uint16_t timeout_ms) {
+static int iqs9151_irq_raw_get(const struct iqs9151_config *cfg) {
+    return gpio_pin_get_raw(cfg->irq_gpio.port, cfg->irq_gpio.pin);
+}
+
+static bool iqs9151_irq_is_active(const struct iqs9151_config *cfg) {
+    const int raw = iqs9151_irq_raw_get(cfg);
+
+    if ((cfg->irq_gpio.dt_flags & GPIO_ACTIVE_LOW) != 0U) {
+        return raw == 0;
+    }
+
+    return raw > 0;
+}
+
+static int iqs9151_wait_for_ready(const struct device *dev, uint16_t timeout_ms) {
     const struct iqs9151_config *cfg = dev->config;
     uint16_t elapsed = 0;
 
-    while (!gpio_pin_get_dt(&cfg->irq_gpio) && elapsed < timeout_ms) {
+    while (!iqs9151_irq_is_active(cfg) && elapsed < timeout_ms) {
         k_sleep(K_MSEC(1));
         elapsed++;
     }
 
     if (elapsed >= timeout_ms) {
-        LOG_WRN("RDY timeout after %dms", timeout_ms);
+        LOG_WRN("RDY timeout after %dms (logical=%d raw=%d flags=0x%04x)",
+                timeout_ms, gpio_pin_get_dt(&cfg->irq_gpio),
+                iqs9151_irq_raw_get(cfg), cfg->irq_gpio.dt_flags);
+        return 0;
     }
-    LOG_DBG("IRQGPIO=%d,TIME=%dms", gpio_pin_get_dt(&cfg->irq_gpio), elapsed);
+
+    LOG_DBG("RDY ready after %dms (logical=%d raw=%d flags=0x%04x)",
+            elapsed, gpio_pin_get_dt(&cfg->irq_gpio),
+            iqs9151_irq_raw_get(cfg), cfg->irq_gpio.dt_flags);
+    return 0;
 }
 
 static int iqs9151_write_chunks(const struct device *dev, const struct iqs9151_config *cfg
@@ -683,10 +709,14 @@ static int iqs9151_write_chunks(const struct device *dev, const struct iqs9151_c
 
     while (offset < len) {
         const size_t chunk_len = MIN(IQS9151_I2C_CHUNK_SIZE, len - offset);
+        int ret;
         
-        iqs9151_wait_for_ready(dev, 200);
+        ret = iqs9151_wait_for_ready(dev, 200);
+        if (ret != 0) {
+            return ret;
+        }
 
-        const int ret = iqs9151_i2c_write(cfg, start_reg + offset, buf + offset, chunk_len);
+        ret = iqs9151_i2c_write(cfg, start_reg + offset, buf + offset, chunk_len);
         if (ret != 0) {
             return ret;
         }
@@ -700,8 +730,20 @@ static int iqs9151_check_product_number(const struct device *dev) {
     uint8_t product[2];
     int ret;
     
-    ret = iqs9151_i2c_read(cfg, IQS9151_ADDR_PRODUCT_NUMBER, product, sizeof(product));
+    for (uint8_t attempt = 1U; attempt <= IQS9151_PRODUCT_NUMBER_RETRIES; attempt++) {
+        ret = iqs9151_i2c_read(cfg, IQS9151_ADDR_PRODUCT_NUMBER, product, sizeof(product));
+        if (ret == 0) {
+            break;
+        }
+
+        LOG_WRN("product number read failed attempt %u/%u (%d)",
+                attempt, IQS9151_PRODUCT_NUMBER_RETRIES, ret);
+        k_msleep(IQS9151_PRODUCT_NUMBER_RETRY_DELAY_MS);
+    }
+
     if (ret != 0) {
+        LOG_ERR("product number read failed after %u attempts (%d)",
+                IQS9151_PRODUCT_NUMBER_RETRIES, ret);
         return ret;
     }
 
@@ -711,7 +753,7 @@ static int iqs9151_check_product_number(const struct device *dev) {
         return -ENODEV;
     }
 
-    LOG_DBG("product number 0x%04x", product_num);
+    LOG_INF("product number 0x%04x", product_num);
     return ret;
 }
 
@@ -2009,6 +2051,9 @@ static int iqs9151_read_frame(const struct iqs9151_config *cfg,
     return 0;
 }
 
+static bool iqs9151_frame_should_process(const struct iqs9151_data *data,
+                                         const struct iqs9151_frame *frame);
+
 static bool iqs9151_handle_show_reset(struct iqs9151_data *data,
                                       const struct iqs9151_frame *frame) {
     const struct device *dev = data->dev;
@@ -2365,11 +2410,49 @@ static void iqs9151_work_cb(struct k_work *work) {
         return;
     }
 
+    if (!iqs9151_frame_should_process(data, &frame)) {
+        return;
+    }
+
     iqs9151_process_frame(data, &frame, now_ms);
 }
 
+static bool iqs9151_frame_should_process(const struct iqs9151_data *data,
+                                         const struct iqs9151_frame *frame) {
+    const uint16_t meaningful_info_flags =
+        IQS9151_INFO_SHOW_RESET | IQS9151_INFO_TP_TOUCH_TOGGLED;
+    const bool movement_detected =
+        (frame->trackpad_flags & IQS9151_TP_MOVEMENT_DETECTED) != 0U;
+
+    return frame->rel_x != 0 || frame->rel_y != 0 || frame->finger_count != 0U ||
+           movement_detected || (frame->info_flags & meaningful_info_flags) != 0U ||
+           data->prev_frame.finger_count != 0U;
+}
+
+#if IS_ENABLED(CONFIG_INPUT_IQS9151_POLLING_ENABLE)
+static void iqs9151_poll_work_cb(struct k_work *work) {
+    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+    struct iqs9151_data *data = CONTAINER_OF(dwork, struct iqs9151_data, poll_work);
+    const struct device *dev = data->dev;
+    const struct iqs9151_config *cfg = dev->config;
+    struct iqs9151_frame frame;
+    int ret;
+
+    ret = iqs9151_read_frame(cfg, &frame);
+    if (ret != 0) {
+        LOG_WRN("poll frame read failed (%d)", ret);
+    } else if (iqs9151_frame_should_process(data, &frame)) {
+        iqs9151_process_frame(data, &frame, k_uptime_get());
+    }
+
+    k_work_schedule(&data->poll_work,
+                    K_MSEC(CONFIG_INPUT_IQS9151_POLLING_INTERVAL_MS));
+}
+#endif
+
 static void iqs9151_gpio_cb(const struct device *port, struct gpio_callback *cb, uint32_t pins) {
     struct iqs9151_data *data = CONTAINER_OF(cb, struct iqs9151_data, gpio_cb);
+    LOG_DBG("DR IRQ pins=0x%08x", pins);
     k_work_submit(&data->work);
 }
 
@@ -2378,6 +2461,10 @@ static int iqs9151_set_interrupt(const struct device *dev, const bool en) {
     int ret = gpio_pin_interrupt_configure_dt( &config->irq_gpio, en ? GPIO_INT_EDGE_TO_ACTIVE : GPIO_INT_DISABLE);
     if (ret < 0) {
         LOG_ERR("can't set interrupt");
+    } else if (en) {
+        LOG_INF("interrupt enabled logical=%d raw=%d flags=0x%04x",
+                gpio_pin_get_dt(&config->irq_gpio),
+                iqs9151_irq_raw_get(config), config->irq_gpio.dt_flags);
     }
     return ret;
 }
@@ -2398,7 +2485,10 @@ static int iqs9151_wait_for_ati(const struct device *dev, uint16_t timeout_ms) {
         uint8_t ctrl[2];
         int ret;
 
-        iqs9151_wait_for_ready(dev, 100);
+        ret = iqs9151_wait_for_ready(dev, 100);
+        if (ret != 0) {
+            return ret;
+        }
         ret = iqs9151_i2c_read(cfg, IQS9151_ADDR_SYSTEM_CONTROL, ctrl, sizeof(ctrl));
         if (ret != 0) {
             return ret;
@@ -2431,7 +2521,10 @@ static int iqs9151_ack_reset(const struct device *dev) {
     config |= IQS9151_SYS_CTRL_ACK_RESET;
     sys_put_le16(config, ctrl);
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     ret = iqs9151_i2c_write(cfg, IQS9151_ADDR_SYSTEM_CONTROL, ctrl, sizeof(ctrl));
     if (ret != 0) {
@@ -2451,7 +2544,10 @@ static int iqs9151_wait_for_show_reset(const struct device *dev, uint16_t timeou
         uint8_t info[2];
         int ret;
 
-        iqs9151_wait_for_ready(dev, 100);
+        ret = iqs9151_wait_for_ready(dev, 100);
+        if (ret != 0) {
+            return ret;
+        }
         ret = iqs9151_i2c_read(cfg, IQS9151_ADDR_INFO_FLAGS, info, sizeof(info));
         if (ret != 0) {
             return ret;
@@ -2483,7 +2579,10 @@ static int iqs9151_sw_reset(const struct device *dev) {
     config |= IQS9151_SYS_CTRL_SW_RESET;
     sys_put_le16(config, ctrl);
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     ret = iqs9151_i2c_write(cfg, IQS9151_ADDR_SYSTEM_CONTROL, ctrl, sizeof(ctrl));
     if (ret != 0) {
@@ -2512,7 +2611,10 @@ static int iqs9151_set_event_mode(const struct device *dev) {
     settings |= IQS9151_CFG_EVENT_MODE;
     sys_put_le16(settings, config_settings);
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     return iqs9151_i2c_write(cfg, IQS9151_ADDR_CONFIG_SETTINGS, config_settings, sizeof(config_settings));
 }
@@ -2521,7 +2623,10 @@ static int iqs9151_configure(const struct device *dev) {
     const struct iqs9151_config *cfg = dev->config;
     int ret;
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     ret = iqs9151_write_chunks(dev, cfg, IQS9151_ADDR_ALP_COMPENSATION,
                                     iqs9151_alp_compensation,
@@ -2737,7 +2842,10 @@ static int iqs9151_init(const struct device *dev) {
         return ret;
     }
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
     
     // Check Product Number
     ret = iqs9151_check_product_number(dev);
@@ -2745,7 +2853,10 @@ static int iqs9151_init(const struct device *dev) {
         return ret;
     }
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     // SW Reset (Show Reset wait + ACK)
     ret = iqs9151_sw_reset(dev);
@@ -2755,7 +2866,10 @@ static int iqs9151_init(const struct device *dev) {
     }
     LOG_DBG("SW Reset complete");
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     // ACK Reset
     ret = iqs9151_ack_reset(dev);
@@ -2765,7 +2879,10 @@ static int iqs9151_init(const struct device *dev) {
     }
     LOG_DBG("ACK Reset complete");
 
-    iqs9151_wait_for_ready(dev, 500);
+    ret = iqs9151_wait_for_ready(dev, 500);
+    if (ret != 0) {
+        return ret;
+    }
 
     // Setup Initial Config
     ret = iqs9151_configure(dev);
@@ -2775,7 +2892,10 @@ static int iqs9151_init(const struct device *dev) {
     }
     LOG_DBG("Setup Initial Config complete");
 
-    iqs9151_wait_for_ready(dev, 100);
+    ret = iqs9151_wait_for_ready(dev, 100);
+    if (ret != 0) {
+        return ret;
+    }
 
     ret = iqs9151_apply_runtime_config(dev, iqs9151_runtime_config_get());
     if (ret != 0) {
@@ -2784,7 +2904,10 @@ static int iqs9151_init(const struct device *dev) {
     }
     LOG_DBG("runtime config applied");
 
-    iqs9151_wait_for_ready(dev, 100);
+    ret = iqs9151_wait_for_ready(dev, 100);
+    if (ret != 0) {
+        return ret;
+    }
 
     // ATI
     ret = iqs9151_run_ati(cfg);
@@ -2803,6 +2926,9 @@ static int iqs9151_init(const struct device *dev) {
 
     // Setup IRQ Call Back
     k_work_init(&data->work, iqs9151_work_cb);
+#if IS_ENABLED(CONFIG_INPUT_IQS9151_POLLING_ENABLE)
+    k_work_init_delayable(&data->poll_work, iqs9151_poll_work_cb);
+#endif
     k_work_init_delayable(&data->one_finger_click_work, iqs9151_one_finger_click_work_cb);
     k_work_init_delayable(&data->two_finger_click_work, iqs9151_two_finger_click_work_cb);
     k_work_init_delayable(&data->three_finger_click_work, iqs9151_three_finger_click_work_cb);
@@ -2834,7 +2960,10 @@ static int iqs9151_init(const struct device *dev) {
         return -EIO;
     }
 
-    iqs9151_wait_for_ready(dev, 100);
+    ret = iqs9151_wait_for_ready(dev, 100);
+    if (ret != 0) {
+        return ret;
+    }
 
     // Set Event Mode
     ret = iqs9151_set_event_mode(dev);
@@ -2846,7 +2975,13 @@ static int iqs9151_init(const struct device *dev) {
 
     // start IRQ
     iqs9151_set_interrupt(dev, true);
-    LOG_DBG("Initialization complete");
+#if IS_ENABLED(CONFIG_INPUT_IQS9151_POLLING_ENABLE)
+    k_work_schedule(&data->poll_work,
+                    K_MSEC(CONFIG_INPUT_IQS9151_POLLING_INTERVAL_MS));
+    LOG_INF("polling fallback enabled interval=%dms",
+            CONFIG_INPUT_IQS9151_POLLING_INTERVAL_MS);
+#endif
+    LOG_INF("initialization complete");
     return 0;
 }
 

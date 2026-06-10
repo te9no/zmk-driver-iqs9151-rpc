@@ -26,6 +26,23 @@ config INPUT_IQS9151_INIT_PRIORITY
     help
       Define the initialization priority for the IQS9151 driver.
 
+config INPUT_IQS9151_POLLING_ENABLE
+    bool "IQS9151 polling fallback"
+    default n
+    help
+      Periodically read IQS9151 frames in addition to the GPIO interrupt path.
+      This is useful for boards where the IQS9151 DR/RDY interrupt line is
+      unavailable or does not generate edges reliably.
+
+config INPUT_IQS9151_POLLING_INTERVAL_MS
+    int "IQS9151 polling interval in milliseconds"
+    range 5 100
+    default 20
+    depends on INPUT_IQS9151_POLLING_ENABLE
+    help
+      Interval used by the polling fallback. Lower values improve pointer
+      latency but increase I2C traffic and CPU wakeups.
+
 choice INPUT_IQS9151_ROTATE
     prompt "IQS9151 rotate"
     default INPUT_IQS9151_ROTATE_0
