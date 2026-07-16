@@ -1,6 +1,7 @@
 menuconfig ZMK_INPUT_PROCESSOR_DYNAMIC_SCALER
     bool "Dynamic scaler input processor"
     default y
+    depends on DT_HAS_ZMK_INPUT_PROCESSOR_DYNAMIC_SCALER_ENABLED
     select SETTINGS
     help
       Enable a dynamic scaler input processor that applies a persisted scale
@@ -35,6 +36,7 @@ endif
 menuconfig ZMK_INPUT_PROCESSOR_BEHAVIORS_CONSUME
     bool "Behaviors consume input processor"
     default y
+    depends on DT_HAS_ZMK_INPUT_PROCESSOR_BEHAVIORS_CONSUME_ENABLED
     help
       Invoke behaviors for matched events, then neutralize the event so it
       does not generate mouse button output. This avoids relying on STOP

@@ -1,6 +1,7 @@
 menuconfig ZMK_BEHAVIOR_TRACKPAD_TO_POS
     bool "Trackpad to position behavior"
     default y
+    depends on DT_HAS_ZMK_BEHAVIOR_TRACKPAD_TO_POS_ENABLED
     help
       Enable the trackpad-to-position behavior that raises position_state_changed
       events for a virtual key position.
@@ -8,6 +9,7 @@ menuconfig ZMK_BEHAVIOR_TRACKPAD_TO_POS
 menuconfig ZMK_BEHAVIOR_ZIP_DYNAMIC_SCALE
     bool "Dynamic scale adjust behavior"
     default y
+    depends on DT_HAS_ZMK_BEHAVIOR_ZIP_DYNAMIC_SCALE_ENABLED
     help
       Enable the behavior that adjusts the dynamic scale factor used by
       the dynamic scaler input processor.
@@ -15,6 +17,7 @@ menuconfig ZMK_BEHAVIOR_ZIP_DYNAMIC_SCALE
 menuconfig ZMK_BEHAVIOR_ZIP_DYNAMIC_SCALE_SET
     bool "Dynamic scale set behavior"
     default y
+    depends on DT_HAS_ZMK_BEHAVIOR_ZIP_DYNAMIC_SCALE_SET_ENABLED
     help
       Enable the behavior that sets the dynamic scale factor used by
       the dynamic scaler input processor.
