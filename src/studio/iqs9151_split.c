@@ -22,7 +22,7 @@ enum iqs9151_split_request_type {
 
 #define IQS9151_SPLIT_DATA_SIZE 8
 #define IQS9151_SPLIT_CHUNK_DONE 0x80
-#define IQS9151_SPLIT_TIMEOUT_MS 5000
+#define IQS9151_SPLIT_TIMEOUT_MS 2000
 
 struct iqs9151_split_request {
     uint8_t source;
@@ -62,6 +62,7 @@ static uint8_t split_request_buf[sizeof(struct iqs9151_runtime_config)];
 static uint8_t split_request_len;
 static uint8_t split_request_seq_active;
 static uint8_t split_request_source;
+static uint8_t split_request_next_chunk;
 
 static bool config_is_valid(const struct iqs9151_runtime_config *config) {
     return config->resolution_x <= 4095U &&
@@ -121,9 +122,11 @@ static int handle_split_request_event(const zmk_event_t *eh) {
         raise_split_response_chunks(req->seq, 0, &config);
         return ZMK_EV_EVENT_HANDLED;
     case IQS9151_SPLIT_REQUEST_RESET:
-        iqs9151_runtime_config_reset();
-        config = *iqs9151_runtime_config_get();
-        raise_split_response_chunks(req->seq, 0, &config);
+        status = iqs9151_runtime_config_reset();
+        if (status == 0) {
+            config = *iqs9151_runtime_config_get();
+        }
+        raise_split_response_chunks(req->seq, status, status == 0 ? &config : NULL);
         return ZMK_EV_EVENT_HANDLED;
     case IQS9151_SPLIT_REQUEST_SET: {
         const uint8_t chunk = req->chunk & ~IQS9151_SPLIT_CHUNK_DONE;
@@ -131,9 +134,15 @@ static int handle_split_request_event(const zmk_event_t *eh) {
             split_request_source = req->source;
             split_request_seq_active = req->seq;
             split_request_len = req->total_len;
+            split_request_next_chunk = 1;
             memset(split_request_buf, 0, sizeof(split_request_buf));
         } else if (req->source != split_request_source || req->seq != split_request_seq_active) {
             return ZMK_EV_EVENT_BUBBLE;
+        } else if (chunk != split_request_next_chunk) {
+            status = -EBADMSG;
+            break;
+        } else {
+            split_request_next_chunk++;
         }
 
         const uint8_t offset = chunk * IQS9151_SPLIT_DATA_SIZE;
@@ -189,6 +198,8 @@ static uint8_t split_response_buf[sizeof(struct iqs9151_runtime_config)];
 static uint8_t split_response_len;
 static uint8_t split_response_source;
 static uint8_t split_request_seq;
+static uint8_t split_response_next_chunk;
+K_MUTEX_DEFINE(iqs9151_split_call_mutex);
 
 static int handle_split_response_event(const zmk_event_t *eh) {
     struct iqs9151_split_response *resp = as_iqs9151_split_response(eh);
@@ -203,8 +214,15 @@ static int handle_split_response_event(const zmk_event_t *eh) {
     const uint8_t chunk = resp->chunk & ~IQS9151_SPLIT_CHUNK_DONE;
     if (chunk == 0) {
         split_response_source = resp->source;
+        split_response_next_chunk = 1;
     } else if (resp->source != split_response_source) {
         return ZMK_EV_EVENT_BUBBLE;
+    } else if (chunk != split_response_next_chunk) {
+        split_response_status = -EBADMSG;
+        k_sem_give(&iqs9151_split_response_sem);
+        return ZMK_EV_EVENT_HANDLED;
+    } else {
+        split_response_next_chunk++;
     }
 
     const uint8_t offset = chunk * IQS9151_SPLIT_DATA_SIZE;
@@ -229,8 +247,9 @@ static int handle_split_response_event(const zmk_event_t *eh) {
     return ZMK_EV_EVENT_HANDLED;
 }
 
-static int call_split_iqs9151(uint8_t type, const struct iqs9151_runtime_config *config,
-                              struct iqs9151_runtime_config *out) {
+static int call_split_iqs9151_locked(uint8_t type,
+                                     const struct iqs9151_runtime_config *config,
+                                     struct iqs9151_runtime_config *out) {
     split_request_seq++;
     if (split_request_seq == 0) {
         split_request_seq = 1;
@@ -242,6 +261,7 @@ static int call_split_iqs9151(uint8_t type, const struct iqs9151_runtime_config 
     split_response_len = 0;
     split_response_status = 0;
     split_response_source = 0;
+    split_response_next_chunk = 0;
 
     if (config != NULL) {
         const uint8_t *bytes = (const uint8_t *)config;
@@ -304,6 +324,14 @@ static int call_split_iqs9151(uint8_t type, const struct iqs9151_runtime_config 
 
     memcpy(out, split_response_buf, sizeof(*out));
     return 0;
+}
+
+static int call_split_iqs9151(uint8_t type, const struct iqs9151_runtime_config *config,
+                              struct iqs9151_runtime_config *out) {
+    k_mutex_lock(&iqs9151_split_call_mutex, K_FOREVER);
+    int ret = call_split_iqs9151_locked(type, config, out);
+    k_mutex_unlock(&iqs9151_split_call_mutex);
+    return ret;
 }
 
 int iqs9151_split_get_config(struct iqs9151_runtime_config *out) {

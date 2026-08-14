@@ -7,6 +7,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/input/input.h>
+#include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
@@ -31,6 +32,8 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 #define IQS9151_ATI_POLL_INTERVAL_MS 10
 #define IQS9151_PRODUCT_NUMBER_RETRIES 5
 #define IQS9151_PRODUCT_NUMBER_RETRY_DELAY_MS 50
+#define IQS9151_WORK_DRAIN_MAX_FRAMES 8
+#define IQS9151_KEY_REPORT_TIMEOUT K_MSEC(CONFIG_INPUT_IQS9151_KEY_REPORT_TIMEOUT_MS)
 #define INERTIA_FP_SHIFT 8
 #define EMA_FP_SHIFT INERTIA_FP_SHIFT
 #define EMA_ALPHA_DEN (1 << EMA_FP_SHIFT)
@@ -321,7 +324,18 @@ static int iqs9151_report_key_event(const struct device *dev, uint16_t code,
         return 0;
     }
 #endif
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_DIAGNOSTIC_LOG)) {
+        LOG_INF("report key code=%u value=%d sync=%d", code, value, sync);
+    }
     return input_report_key(dev, code, value, sync, timeout);
+}
+
+static k_timeout_t iqs9151_key_report_timeout(void) {
+    if (CONFIG_INPUT_IQS9151_KEY_REPORT_TIMEOUT_MS == 0) {
+        return K_NO_WAIT;
+    }
+
+    return IQS9151_KEY_REPORT_TIMEOUT;
 }
 
 static int iqs9151_report_rel_event(const struct device *dev, uint16_t code,
@@ -340,6 +354,9 @@ static int iqs9151_report_rel_event(const struct device *dev, uint16_t code,
         return 0;
     }
 #endif
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_DIAGNOSTIC_LOG)) {
+        LOG_INF("report rel code=%u value=%d sync=%d", code, value, sync);
+    }
     return input_report_rel(dev, code, value, sync, timeout);
 }
 
@@ -453,8 +470,8 @@ static const uint8_t iqs9151_main_config[] = {
     ALP_TX_ENABLE_3,
     ALP_TX_ENABLE_4,
     ALP_TX_ENABLE_5,
-    TRACKPAD_TOUCH_SET_THRESHOLD,
-    TRACKPAD_TOUCH_CLEAR_THRESHOLD,
+    CONFIG_INPUT_IQS9151_TOUCH_SET_THRESHOLD,
+    CONFIG_INPUT_IQS9151_TOUCH_CLEAR_THRESHOLD,
     ALP_THRESHOLD,
     ALP_AUTOPROX_THRESHOLD,
     ALP_SET_DEBOUNCE,
@@ -489,12 +506,12 @@ static const uint8_t iqs9151_main_config[] = {
     XY_DYNAMIC_FILTER_TOP_SPEED_1,
     XY_DYNAMIC_FILTER_BOTTOM_BETA,
     XY_DYNAMIC_FILTER_STATIC_FILTER_BETA,
-    STATIONARY_TOUCH_MOV_THRESHOLD,
+    CONFIG_INPUT_IQS9151_STATIONARY_TOUCH_MOV_THRESHOLD,
     FINGER_SPLIT_FACTOR,
     X_TRIM_VALUE,
     Y_TRIM_VALUE,
     JITTER_FILTER_DELTA,
-    FINGER_CONFIDENCE_THRESHOLD,
+    CONFIG_INPUT_IQS9151_FINGER_CONFIDENCE_THRESHOLD,
 };
 static const uint8_t iqs9151_rxtx_map[] = {
     RX_TX_MAP_0,  RX_TX_MAP_1,  RX_TX_MAP_2,  RX_TX_MAP_3,  RX_TX_MAP_4,
@@ -788,6 +805,20 @@ static bool iqs9151_finger2_valid(const struct iqs9151_frame *frame) {
     return finger2_confident && finger2_coord_valid;
 }
 
+static bool iqs9151_one_finger_current_valid(const struct iqs9151_frame *frame) {
+    return frame->finger_count == 1U && iqs9151_finger1_valid(frame);
+}
+
+static bool iqs9151_two_finger_current_valid(const struct iqs9151_frame *frame) {
+    return frame->finger_count == 2U &&
+           iqs9151_finger1_valid(frame) &&
+           iqs9151_finger2_valid(frame);
+}
+
+static bool iqs9151_three_finger_current_valid(const struct iqs9151_frame *frame) {
+    return frame->finger_count == 3U && iqs9151_finger1_valid(frame);
+}
+
 static void iqs9151_update_prev_frame(struct iqs9151_data *data,
                                       const struct iqs9151_frame *frame,
                                       const struct iqs9151_frame *prev_frame) {
@@ -1061,8 +1092,8 @@ static bool iqs9151_emit_click(struct iqs9151_data *data,
         return false;
     }
 
-    iqs9151_report_key_event(dev, button, true, true, K_FOREVER);
-    iqs9151_report_key_event(dev, button, false, true, K_FOREVER);
+    iqs9151_report_key_event(dev, button, true, true, iqs9151_key_report_timeout());
+    iqs9151_report_key_event(dev, button, false, true, iqs9151_key_report_timeout());
     return true;
 }
 
@@ -1073,7 +1104,7 @@ static bool iqs9151_emit_hold_press(struct iqs9151_data *data,
         return false;
     }
 
-    iqs9151_report_key_event(dev, button, true, true, K_FOREVER);
+    iqs9151_report_key_event(dev, button, true, true, iqs9151_key_report_timeout());
     data->hold_button = button;
     return true;
 }
@@ -1163,7 +1194,7 @@ static bool iqs9151_one_finger_update(struct iqs9151_data *data,
                                       const struct iqs9151_frame *prev_frame,
                                       const struct device *dev) {
     struct iqs9151_one_finger_state *state = &data->one_finger;
-    const bool one_now = frame->finger_count == 1U;
+    const bool one_now = iqs9151_one_finger_current_valid(frame);
     const int64_t now_ms = k_uptime_get();
     uint16_t x = 0U;
     uint16_t y = 0U;
@@ -1295,7 +1326,7 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
                                       const struct device *dev,
                                       struct iqs9151_two_finger_result *result) {
     struct iqs9151_two_finger_state *state = &data->two_finger;
-    const bool two_now = frame->finger_count == 2U;
+    const bool two_now = iqs9151_two_finger_current_valid(frame);
     const bool one_lead_tap_candidate = data->two_finger_one_lead_valid;
     const int64_t now_ms = k_uptime_get();
     uint16_t f1x = 0U;
@@ -1415,12 +1446,18 @@ static void iqs9151_two_finger_update(struct iqs9151_data *data,
                 state->mode = IQS9151_2F_MODE_SCROLL;
                 result->scroll_started = true;
                 state->tap_candidate = false;
+                LOG_DBG("2f scroll start dx=%d dy=%d dist=%d threshold=%d",
+                        state->centroid_dx, state->centroid_dy, state->distance_delta,
+                        TWO_FINGER_SCROLL_START_MOVE);
             } else if (iqs9151_runtime_config_get()->pinch &&
                        abs_dist >= TWO_FINGER_PINCH_START_DISTANCE &&
                        abs_dist > abs_center) {
                 state->mode = IQS9151_2F_MODE_PINCH;
                 result->pinch_started = true;
                 state->tap_candidate = false;
+                LOG_DBG("2f pinch start dx=%d dy=%d dist=%d threshold=%d",
+                        state->centroid_dx, state->centroid_dy, state->distance_delta,
+                        TWO_FINGER_PINCH_START_DISTANCE);
             }
         }
 
@@ -1592,7 +1629,9 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
     bool tap_detected = false;
     bool tap_emitted = false;
 
-    if (!data->three_active && frame->finger_count == 3U) {
+    const bool three_now = iqs9151_three_finger_current_valid(frame);
+
+    if (!data->three_active && three_now) {
         bool tapdrag_second_touch = false;
 
         if (data->three_finger_click_pending) {
@@ -1644,7 +1683,7 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
     data->three_finger_one_lead_valid = false;
     data->three_finger_two_lead_valid = false;
 
-    if (frame->finger_count == 3U) {
+    if (three_now) {
         const int64_t elapsed = now_ms - data->three_down_ms;
 
         if (data->three_release_pending) {
@@ -1684,15 +1723,15 @@ static bool iqs9151_three_finger_update(struct iqs9151_data *data,
             if (iqs9151_abs32(data->three_dx) >= iqs9151_runtime_config_get()->three_finger_swipe_threshold &&
                 iqs9151_abs32(data->three_dx) >= iqs9151_abs32(data->three_dy)) {
                 const uint16_t key = (data->three_dx < 0) ? INPUT_BTN_4 : INPUT_BTN_3;
-                iqs9151_report_key_event(dev, key, true, true, K_FOREVER);
-                iqs9151_report_key_event(dev, key, false, true, K_FOREVER);
+                iqs9151_report_key_event(dev, key, true, true, iqs9151_key_report_timeout());
+                iqs9151_report_key_event(dev, key, false, true, iqs9151_key_report_timeout());
                 data->three_swipe_sent = true;
                 return true;
             } else if (iqs9151_abs32(data->three_dy) >= iqs9151_runtime_config_get()->three_finger_swipe_threshold &&
                        iqs9151_abs32(data->three_dy) > iqs9151_abs32(data->three_dx)) {
                 const uint16_t key = (data->three_dy < 0) ? INPUT_BTN_5 : INPUT_BTN_6;
-                iqs9151_report_key_event(dev, key, true, true, K_FOREVER);
-                iqs9151_report_key_event(dev, key, false, true, K_FOREVER);
+                iqs9151_report_key_event(dev, key, true, true, iqs9151_key_report_timeout());
+                iqs9151_report_key_event(dev, key, false, true, iqs9151_key_report_timeout());
                 data->three_swipe_sent = true;
                 return true;
             }
@@ -1816,7 +1855,7 @@ static void iqs9151_reset_gesture_states(struct iqs9151_data *data,
                                          const struct device *dev,
                                          bool release_hold) {
     if (data->two_finger.active && data->two_finger.mode == IQS9151_2F_MODE_PINCH) {
-        iqs9151_report_key_event(dev, INPUT_BTN_7, false, true, K_FOREVER);
+        iqs9151_report_key_event(dev, INPUT_BTN_7, false, true, iqs9151_key_report_timeout());
     }
     if (release_hold) {
         iqs9151_release_hold(data, dev);
@@ -2053,6 +2092,8 @@ static int iqs9151_read_frame(const struct iqs9151_config *cfg,
 
 static bool iqs9151_frame_should_process(const struct iqs9151_data *data,
                                          const struct iqs9151_frame *frame);
+static void iqs9151_log_frame(const char *source, const struct iqs9151_frame *frame,
+                              bool will_process);
 
 static bool iqs9151_handle_show_reset(struct iqs9151_data *data,
                                       const struct iqs9151_frame *frame) {
@@ -2221,7 +2262,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
                                        bool cursor_moving,
                                        bool suppress_cursor_tail) {
     const bool finger1_started =
-        (prev_frame->finger_count == 0U) && (frame->finger_count == 1U);
+        (prev_frame->finger_count == 0U) && iqs9151_one_finger_current_valid(frame);
     const bool cursor_released =
         (prev_frame->finger_count == 1U) && (frame->finger_count == 0U);
     const struct iqs9151_inertia_params scroll_params = iqs9151_scroll_params_get();
@@ -2255,7 +2296,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
             iqs9151_ema_reset(&data->cursor_ema_x_fp, &data->cursor_ema_y_fp);
             iqs9151_motion_history_reset(&data->cursor_motion_history);
         }
-        if (frame->finger_count == 1U && cursor_moving) {
+        if (iqs9151_one_finger_current_valid(frame) && cursor_moving) {
             iqs9151_inertia_cancel(&data->inertia_cursor, &data->inertia_cursor_work);
             iqs9151_ema_update(&data->cursor_ema_x_fp, &data->cursor_ema_y_fp,
                                frame->rel_x, frame->rel_y, cursor_params.ema_alpha);
@@ -2280,6 +2321,7 @@ static void iqs9151_update_inertia_ema(struct iqs9151_data *data,
 
     /* Inertial Scrolling */
     if (two_result->scroll_ended) {
+        LOG_DBG("2f scroll end history_count=%u", data->scroll_motion_history.count);
         if (iqs9151_runtime_config_get()->scroll_inertia &&
             iqs9151_inertia_seed_from_history(&data->scroll_motion_history,
                                               &scroll_params,
@@ -2304,10 +2346,10 @@ static void iqs9151_report_frame_events(const struct device *dev,
                                         bool cursor_moving,
                                         bool suppress_cursor_tail) {
     if (two_result->pinch_started) {
-        iqs9151_report_key_event(dev, INPUT_BTN_7, true, true, K_FOREVER);
+        iqs9151_report_key_event(dev, INPUT_BTN_7, true, true, iqs9151_key_report_timeout());
     }
     if (two_result->pinch_ended) {
-        iqs9151_report_key_event(dev, INPUT_BTN_7, false, true, K_FOREVER);
+        iqs9151_report_key_event(dev, INPUT_BTN_7, false, true, iqs9151_key_report_timeout());
     }
 
     if (two_result->pinch_active) {
@@ -2326,7 +2368,8 @@ static void iqs9151_report_frame_events(const struct device *dev,
         if (have_y) {
             iqs9151_report_rel_event(dev, INPUT_REL_WHEEL, scroll_y, true, K_NO_WAIT);
         }
-    } else if (frame->finger_count == 1U && cursor_moving && !suppress_cursor_tail) {
+    } else if (iqs9151_one_finger_current_valid(frame) && cursor_moving &&
+               !suppress_cursor_tail) {
         const int16_t cursor_x = iqs9151_apply_cursor_speed(frame->rel_x);
         const int16_t cursor_y = iqs9151_apply_cursor_speed(frame->rel_y);
         const bool have_x = cursor_x != 0;
@@ -2400,21 +2443,32 @@ static void iqs9151_work_cb(struct k_work *work) {
     struct iqs9151_data *data = CONTAINER_OF(work, struct iqs9151_data, work);
     const struct device *dev = data->dev;
     const struct iqs9151_config *cfg = dev->config;
-    struct iqs9151_frame frame;
-    int ret;
-    const int64_t now_ms = k_uptime_get();
 
-    ret = iqs9151_read_frame(cfg, &frame);
-    if (ret != 0) {
-        LOG_ERR("frame read failed (%d)", ret);
-        return;
+    for (uint8_t i = 0U; i < IQS9151_WORK_DRAIN_MAX_FRAMES; i++) {
+        struct iqs9151_frame frame;
+        int ret;
+        const int64_t now_ms = k_uptime_get();
+
+        if (i > 0U && !iqs9151_irq_is_active(cfg)) {
+            break;
+        }
+
+        ret = iqs9151_read_frame(cfg, &frame);
+        if (ret != 0) {
+            LOG_ERR("frame read failed (%d)", ret);
+            return;
+        }
+
+        const bool will_process = iqs9151_frame_should_process(data, &frame);
+        iqs9151_log_frame("irq", &frame, will_process);
+        if (will_process) {
+            iqs9151_process_frame(data, &frame, now_ms);
+        }
     }
 
-    if (!iqs9151_frame_should_process(data, &frame)) {
-        return;
+    if (iqs9151_irq_is_active(cfg)) {
+        LOG_DBG("DR still active after draining %u frames", IQS9151_WORK_DRAIN_MAX_FRAMES);
     }
-
-    iqs9151_process_frame(data, &frame, now_ms);
 }
 
 static bool iqs9151_frame_should_process(const struct iqs9151_data *data,
@@ -2429,6 +2483,30 @@ static bool iqs9151_frame_should_process(const struct iqs9151_data *data,
            data->prev_frame.finger_count != 0U;
 }
 
+static void iqs9151_log_frame(const char *source, const struct iqs9151_frame *frame,
+                              bool will_process) {
+    if (!IS_ENABLED(CONFIG_INPUT_IQS9151_DIAGNOSTIC_LOG)) {
+        return;
+    }
+
+    const bool idle = frame->rel_x == 0 && frame->rel_y == 0 &&
+                      frame->finger_count == 0U &&
+                      (frame->trackpad_flags & IQS9151_TP_MOVEMENT_DETECTED) == 0U;
+
+    if (idle) {
+        LOG_DBG("%s idle frame info=0x%04x tp=0x%04x", source,
+                frame->info_flags, frame->trackpad_flags);
+        return;
+    }
+
+    LOG_INF("%s frame rel=(%d,%d) info=0x%04x tp=0x%04x finger=%u "
+            "f1=(%u,%u) f2=(%u,%u) process=%d",
+            source, frame->rel_x, frame->rel_y, frame->info_flags,
+            frame->trackpad_flags, frame->finger_count, frame->finger1_x,
+            frame->finger1_y, frame->finger2_x, frame->finger2_y,
+            will_process);
+}
+
 #if IS_ENABLED(CONFIG_INPUT_IQS9151_POLLING_ENABLE)
 static void iqs9151_poll_work_cb(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
@@ -2438,11 +2516,21 @@ static void iqs9151_poll_work_cb(struct k_work *work) {
     struct iqs9151_frame frame;
     int ret;
 
+    if (!iqs9151_irq_is_active(cfg)) {
+        k_work_schedule(&data->poll_work,
+                        K_MSEC(CONFIG_INPUT_IQS9151_POLLING_INTERVAL_MS));
+        return;
+    }
+
     ret = iqs9151_read_frame(cfg, &frame);
     if (ret != 0) {
         LOG_WRN("poll frame read failed (%d)", ret);
-    } else if (iqs9151_frame_should_process(data, &frame)) {
-        iqs9151_process_frame(data, &frame, k_uptime_get());
+    } else {
+        const bool will_process = iqs9151_frame_should_process(data, &frame);
+        iqs9151_log_frame("poll", &frame, will_process);
+        if (will_process) {
+            iqs9151_process_frame(data, &frame, k_uptime_get());
+        }
     }
 
     k_work_schedule(&data->poll_work,
@@ -2452,7 +2540,9 @@ static void iqs9151_poll_work_cb(struct k_work *work) {
 
 static void iqs9151_gpio_cb(const struct device *port, struct gpio_callback *cb, uint32_t pins) {
     struct iqs9151_data *data = CONTAINER_OF(cb, struct iqs9151_data, gpio_cb);
-    LOG_DBG("DR IRQ pins=0x%08x", pins);
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_DIAGNOSTIC_LOG)) {
+        LOG_INF("DR IRQ pins=0x%08x", pins);
+    }
     k_work_submit(&data->work);
 }
 
@@ -2802,17 +2892,29 @@ int iqs9151_runtime_config_set(const struct iqs9151_runtime_config *config) {
     }
 
     k_mutex_lock(&iqs9151_runtime_config_mutex, K_FOREVER);
-    iqs9151_runtime_config = *config;
+    const struct iqs9151_runtime_config previous_config = iqs9151_runtime_config;
+
     if (iqs9151_runtime_dev != NULL) {
-        ret = iqs9151_apply_runtime_config(iqs9151_runtime_dev, &iqs9151_runtime_config);
+        ret = iqs9151_apply_runtime_config(iqs9151_runtime_dev, config);
+        if (ret != 0) {
+            int rollback_ret =
+                iqs9151_apply_runtime_config(iqs9151_runtime_dev, &previous_config);
+            if (rollback_ret != 0) {
+                LOG_ERR("Failed to restore previous runtime config (%d)", rollback_ret);
+            }
+            k_mutex_unlock(&iqs9151_runtime_config_mutex);
+            return ret;
+        }
     }
+
+    iqs9151_runtime_config = *config;
     k_mutex_unlock(&iqs9151_runtime_config_mutex);
 
-    return ret;
+    return 0;
 }
 
-void iqs9151_runtime_config_reset(void) {
-    (void)iqs9151_runtime_config_set(&iqs9151_default_runtime_config);
+int iqs9151_runtime_config_reset(void) {
+    return iqs9151_runtime_config_set(&iqs9151_default_runtime_config);
 }
 
 static int iqs9151_init(const struct device *dev) {
@@ -2822,7 +2924,10 @@ static int iqs9151_init(const struct device *dev) {
     data->dev = dev;
     iqs9151_runtime_dev = dev;
 
-    LOG_DBG("Initialization Start");
+    LOG_INF("initialization start bus=%s addr=0x%02x irq=%s.%u flags=0x%04x",
+            cfg->i2c.bus ? cfg->i2c.bus->name : "(null)", cfg->i2c.addr,
+            cfg->irq_gpio.port ? cfg->irq_gpio.port->name : "(null)", cfg->irq_gpio.pin,
+            cfg->irq_gpio.dt_flags);
 
     if (!device_is_ready(cfg->i2c.bus)) {
         LOG_ERR("I2C bus not ready");
@@ -2839,11 +2944,13 @@ static int iqs9151_init(const struct device *dev) {
     }
     ret = gpio_pin_configure_dt(&cfg->irq_gpio, GPIO_INPUT);
     if (ret) {
+        LOG_ERR("IRQ GPIO configure failed (%d)", ret);
         return ret;
     }
 
     ret = iqs9151_wait_for_ready(dev, 500);
     if (ret != 0) {
+        LOG_ERR("initial RDY wait failed (%d)", ret);
         return ret;
     }
     
@@ -2855,6 +2962,7 @@ static int iqs9151_init(const struct device *dev) {
 
     ret = iqs9151_wait_for_ready(dev, 500);
     if (ret != 0) {
+        LOG_ERR("post-product RDY wait failed (%d)", ret);
         return ret;
     }
 
@@ -2868,6 +2976,7 @@ static int iqs9151_init(const struct device *dev) {
 
     ret = iqs9151_wait_for_ready(dev, 500);
     if (ret != 0) {
+        LOG_ERR("post-sw-reset RDY wait failed (%d)", ret);
         return ret;
     }
 
@@ -2881,19 +2990,25 @@ static int iqs9151_init(const struct device *dev) {
 
     ret = iqs9151_wait_for_ready(dev, 500);
     if (ret != 0) {
+        LOG_ERR("post-ack-reset RDY wait failed (%d)", ret);
         return ret;
     }
 
     // Setup Initial Config
-    ret = iqs9151_configure(dev);
-    if (ret != 0) {
-        LOG_ERR("Device configuration failed: %d", ret);
-        return ret;
+    if (IS_ENABLED(CONFIG_INPUT_IQS9151_APPLY_STATIC_CONFIG)) {
+        ret = iqs9151_configure(dev);
+        if (ret != 0) {
+            LOG_ERR("Device configuration failed: %d", ret);
+            return ret;
+        }
+        LOG_DBG("Setup Initial Config complete");
+    } else {
+        LOG_INF("static configuration skipped");
     }
-    LOG_DBG("Setup Initial Config complete");
 
     ret = iqs9151_wait_for_ready(dev, 100);
     if (ret != 0) {
+        LOG_ERR("post-config RDY wait failed (%d)", ret);
         return ret;
     }
 
@@ -2906,6 +3021,7 @@ static int iqs9151_init(const struct device *dev) {
 
     ret = iqs9151_wait_for_ready(dev, 100);
     if (ret != 0) {
+        LOG_ERR("post-runtime-config RDY wait failed (%d)", ret);
         return ret;
     }
 
@@ -2962,6 +3078,7 @@ static int iqs9151_init(const struct device *dev) {
 
     ret = iqs9151_wait_for_ready(dev, 100);
     if (ret != 0) {
+        LOG_ERR("pre-event-mode RDY wait failed (%d)", ret);
         return ret;
     }
 
@@ -3106,3 +3223,50 @@ void iqs9151_test_force_pinch_session(void *ctx, bool active) {
                         CONFIG_INPUT_IQS9151_INIT_PRIORITY, NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(IQS9151_INIT);
+
+#if IS_ENABLED(CONFIG_INPUT_IQS9151_DIAGNOSTIC_LOG)
+static void iqs9151_diag_work_handler(struct k_work *work) {
+    ARG_UNUSED(work);
+
+#define IQS9151_LATE_DIAG(inst)                                                               \
+    do {                                                                                      \
+        const struct device *dev = DEVICE_DT_GET(DT_DRV_INST(inst));                          \
+        const struct i2c_dt_spec i2c = I2C_DT_SPEC_INST_GET(inst);                             \
+        const struct gpio_dt_spec irq = GPIO_DT_SPEC_INST_GET(inst, irq_gpios);                \
+        LOG_INF("late diag inst=%d ready=%d bus=%s bus_ready=%d irq=%s.%u irq_ready=%d "       \
+                "logical=%d raw=%d flags=0x%04x",                                             \
+                inst, device_is_ready(dev), i2c.bus ? i2c.bus->name : "(null)",               \
+                i2c.bus ? device_is_ready(i2c.bus) : 0,                                       \
+                irq.port ? irq.port->name : "(null)", irq.pin,                                \
+                irq.port ? device_is_ready(irq.port) : 0,                                     \
+                irq.port ? gpio_pin_get_dt(&irq) : -1,                                        \
+                irq.port ? gpio_pin_get_raw(irq.port, irq.pin) : -1, irq.dt_flags);           \
+        if (device_is_ready(dev)) {                                                           \
+            const struct iqs9151_config *cfg = dev->config;                                   \
+            struct iqs9151_frame frame;                                                       \
+            int ret = iqs9151_read_frame(cfg, &frame);                                        \
+            if (ret == 0) {                                                                   \
+                LOG_INF("late diag frame inst=%d rel=(%d,%d) info=0x%04x tp=0x%04x "          \
+                        "finger=%u f1=(%u,%u) f2=(%u,%u)",                                   \
+                        inst, frame.rel_x, frame.rel_y, frame.info_flags,                     \
+                        frame.trackpad_flags, frame.finger_count, frame.finger1_x,            \
+                        frame.finger1_y, frame.finger2_x, frame.finger2_y);                   \
+            } else {                                                                          \
+                LOG_ERR("late diag frame read failed inst=%d (%d)", inst, ret);               \
+            }                                                                                 \
+        }                                                                                     \
+    } while (0);
+
+    DT_INST_FOREACH_STATUS_OKAY(IQS9151_LATE_DIAG)
+#undef IQS9151_LATE_DIAG
+}
+
+K_WORK_DELAYABLE_DEFINE(iqs9151_diag_work, iqs9151_diag_work_handler);
+
+static int iqs9151_late_diag(void) {
+    k_work_schedule(&iqs9151_diag_work, K_SECONDS(10));
+    return 0;
+}
+
+SYS_INIT(iqs9151_late_diag, APPLICATION, 99);
+#endif

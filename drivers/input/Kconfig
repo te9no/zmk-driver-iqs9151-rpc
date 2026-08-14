@@ -43,6 +43,32 @@ config INPUT_IQS9151_POLLING_INTERVAL_MS
       Interval used by the polling fallback. Lower values improve pointer
       latency but increase I2C traffic and CPU wakeups.
 
+config INPUT_IQS9151_DIAGNOSTIC_LOG
+    bool "IQS9151 diagnostic event logging"
+    default n
+    help
+      Log IRQ/poll frames and emitted input events at info level. This is
+      intended for board bring-up and should normally be disabled.
+
+config INPUT_IQS9151_KEY_REPORT_TIMEOUT_MS
+    int "IQS9151 key event report timeout in milliseconds"
+    range 0 100
+    default 2
+    help
+      Timeout used when the IQS9151 driver emits button-like gesture events.
+      Pointer motion is always reported with K_NO_WAIT. A short timeout keeps
+      tap, hold, swipe, and pinch-button transitions from blocking the driver
+      workqueue indefinitely when the downstream input path is congested.
+      Set to 0 to use K_NO_WAIT for these key events as well.
+
+config INPUT_IQS9151_APPLY_STATIC_CONFIG
+    bool "Apply IQS9151 static configuration blob"
+    default y
+    help
+      Write the generated Azoteq configuration blob during initialization.
+      Disable this when debugging boards whose electrode layout or factory
+      programming differs from the bundled configuration.
+
 choice INPUT_IQS9151_ROTATE
     prompt "IQS9151 rotate"
     default INPUT_IQS9151_ROTATE_0
@@ -131,6 +157,37 @@ config INPUT_IQS9151_DYNAMIC_FILTER_BOTTOM_BETA
     help
       XY Dynamic Filter Bottom Beta (0x11EE).
       Currently not applied by the driver.
+
+config INPUT_IQS9151_TOUCH_SET_THRESHOLD
+    int "IQS9151 touch set threshold"
+    range 1 255
+    default 30
+    help
+      Trackpad touch set threshold. Increase this when an idle board reports
+      phantom touches.
+
+config INPUT_IQS9151_TOUCH_CLEAR_THRESHOLD
+    int "IQS9151 touch clear threshold"
+    range 1 255
+    default 26
+    help
+      Trackpad touch clear threshold. This should be lower than the set
+      threshold to keep hysteresis.
+
+config INPUT_IQS9151_STATIONARY_TOUCH_MOV_THRESHOLD
+    int "IQS9151 stationary touch movement threshold"
+    range 1 255
+    default 5
+    help
+      Movement threshold used while a touch is considered stationary.
+
+config INPUT_IQS9151_FINGER_CONFIDENCE_THRESHOLD
+    int "IQS9151 finger confidence threshold"
+    range 1 255
+    default 20
+    help
+      Finger confidence threshold. Increase this when noisy frames produce
+      valid-looking finger coordinates without intentional touch.
 
 config INPUT_IQS9151_1F_TAP_ENABLE
     bool "IQS9151 single-finger tap enable"

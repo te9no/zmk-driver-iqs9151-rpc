@@ -290,7 +290,12 @@ static void handle_set_config_request(const zmk_iqs9151_SetConfigRequest *req,
 
 static void handle_reset_config_request(zmk_iqs9151_Response *resp) {
 #if IS_ENABLED(CONFIG_INPUT_IQS9151)
-    iqs9151_runtime_config_reset();
+    int ret = iqs9151_runtime_config_reset();
+    if (ret != 0) {
+        LOG_WRN("Failed to reset IQS9151 config: %d", ret);
+        set_error_response(resp, "failed to reset config");
+        return;
+    }
 
     zmk_iqs9151_ResetConfigResponse reset_config = zmk_iqs9151_ResetConfigResponse_init_zero;
     reset_config.has_config = true;

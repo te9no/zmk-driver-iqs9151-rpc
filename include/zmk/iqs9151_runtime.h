@@ -50,4 +50,4 @@ struct iqs9151_runtime_config {
 
 const struct iqs9151_runtime_config *iqs9151_runtime_config_get(void);
 int iqs9151_runtime_config_set(const struct iqs9151_runtime_config *config);
-void iqs9151_runtime_config_reset(void);
+int iqs9151_runtime_config_reset(void);

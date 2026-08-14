@@ -125,8 +125,13 @@ ZTEST_F(iqs9151_work_cb, test_one_finger_release_starts_cursor_inertia) {
                  "Cursor inertia should start on release");
     zassert_equal(iqs9151_test_prev_finger_count(fixture->ctx), 0U,
                   "Previous frame should track release");
-    zassert_equal(fixture->log.count, 4U,
-                  "Only REL events from movement frames are expected");
+    zassert_equal(fixture->log.count, 2U,
+                  "Only non-zero REL events from movement frames are expected (got %u)",
+                  (unsigned int)fixture->log.count);
+    zassert_equal(fixture->log.events[0].code, INPUT_REL_X, "Event[0] should be REL_X");
+    zassert_equal(fixture->log.events[0].value, 24, "Event[0] unexpected REL_X value");
+    zassert_equal(fixture->log.events[1].code, INPUT_REL_X, "Event[1] should be REL_X");
+    zassert_equal(fixture->log.events[1].value, 20, "Event[1] unexpected REL_X value");
     for (size_t i = 0; i < fixture->log.count; i++) {
         zassert_equal(fixture->log.events[i].type, IQS9151_TEST_EVENT_REL,
                       "Unexpected non-REL event at idx %u", (unsigned int)i);
@@ -151,8 +156,9 @@ ZTEST_F(iqs9151_work_cb, test_one_finger_release_after_stale_gap_does_not_start_
 
     zassert_false(iqs9151_test_cursor_inertia_active(fixture->ctx),
                   "Cursor inertia should stay off after a stale release");
-    zassert_equal(fixture->log.count, 4U,
-                  "Only REL events from active movement frames are expected");
+    zassert_equal(fixture->log.count, 2U,
+                  "Only non-zero REL events from active movement frames are expected (got %u)",
+                  (unsigned int)fixture->log.count);
 }
 
 ZTEST_F(iqs9151_work_cb, test_one_finger_release_after_slowdown_does_not_start_cursor_inertia) {
@@ -188,6 +194,22 @@ ZTEST_F(iqs9151_work_cb, test_one_finger_release_after_slowdown_does_not_start_c
 
     zassert_false(iqs9151_test_cursor_inertia_active(fixture->ctx),
                   "Cursor inertia should stay off after slowing down before release");
+}
+
+ZTEST_F(iqs9151_work_cb, test_one_finger_ignores_unconfident_movement) {
+    const struct iqs9151_test_frame noisy_move =
+        make_frame(1U, IQS9151_TP_MOVEMENT_DETECTED | 1U,
+                   24, -12, 0, 100, 100, 0, 0);
+    const struct iqs9151_test_frame release =
+        make_frame(0U, 0U, 0, 0, 0, 0, 0, 0, 0);
+
+    iqs9151_test_process_frame(fixture->ctx, &noisy_move, 0);
+    iqs9151_test_process_frame(fixture->ctx, &release, 10);
+
+    zassert_equal(fixture->log.count, 0U,
+                  "Unconfident 1F movement must not emit cursor events");
+    zassert_false(iqs9151_test_cursor_inertia_active(fixture->ctx),
+                  "Unconfident 1F movement must not seed cursor inertia");
 }
 
 ZTEST_F(iqs9151_work_cb, test_two_finger_scroll_reports_and_starts_scroll_inertia) {
@@ -264,14 +286,12 @@ ZTEST_F(iqs9151_work_cb, test_new_one_finger_touch_cancels_scroll_inertia) {
 
     zassert_false(iqs9151_test_scroll_inertia_active(fixture->ctx),
                   "A new 1F touch should cancel scroll inertia");
-    zassert_equal(fixture->log.count, 3U,
-                  "Expected one scroll REL event plus one 1F cursor frame");
+    zassert_equal(fixture->log.count, 2U,
+                  "Expected one scroll REL event plus one non-zero cursor axis (got %u)",
+                  (unsigned int)fixture->log.count);
     zassert_equal(fixture->log.events[1].type, IQS9151_TEST_EVENT_REL, "Event[1] not REL");
     zassert_equal(fixture->log.events[1].code, INPUT_REL_X, "Event[1] should be REL_X");
     zassert_equal(fixture->log.events[1].value, 18, "Event[1] unexpected REL_X value");
-    zassert_equal(fixture->log.events[2].type, IQS9151_TEST_EVENT_REL, "Event[2] not REL");
-    zassert_equal(fixture->log.events[2].code, INPUT_REL_Y, "Event[2] should be REL_Y");
-    zassert_equal(fixture->log.events[2].value, 0, "Event[2] unexpected REL_Y value");
 }
 
 ZTEST_F(iqs9151_work_cb, test_two_finger_scroll_tail_two_to_one_to_zero_suppresses_cursor_path) {
@@ -337,6 +357,26 @@ ZTEST_F(iqs9151_work_cb, test_two_finger_pinch_reports_btn7_and_wheel) {
     zassert_equal(fixture->log.events[2].type, IQS9151_TEST_EVENT_KEY, "Event[2] not key");
     zassert_equal(fixture->log.events[2].code, INPUT_BTN_7, "Event[2] unexpected code");
     zassert_equal(fixture->log.events[2].value, 0, "Event[2] should be BTN7 release");
+}
+
+ZTEST_F(iqs9151_work_cb, test_two_finger_scroll_ignores_unconfident_finger_count) {
+    const struct iqs9151_test_frame noisy_start =
+        make_frame(2U, 2U, 0, 0, 0, 100, 100, 200, 100);
+    const struct iqs9151_test_frame noisy_move =
+        make_frame(2U,
+                   IQS9151_TP_FINGER1_CONFIDENCE | 2U,
+                   0, 0, 0, 100, 100, 280, 180);
+    const struct iqs9151_test_frame release =
+        make_frame(0U, 0U, 0, 0, 0, 0, 0, 0, 0);
+
+    iqs9151_test_process_frame(fixture->ctx, &noisy_start, 0);
+    iqs9151_test_process_frame(fixture->ctx, &noisy_move, 10);
+    iqs9151_test_process_frame(fixture->ctx, &release, 20);
+
+    zassert_false(iqs9151_test_scroll_inertia_active(fixture->ctx),
+                  "Unconfident 2F frames must not start scroll inertia");
+    zassert_equal(fixture->log.count, 0U,
+                  "Unconfident 2F frames must not emit scroll events");
 }
 
 ZTEST_F(iqs9151_work_cb, test_two_finger_pinch_tail_two_to_one_to_zero_suppresses_cursor_path) {
