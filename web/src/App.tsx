@@ -19,6 +19,17 @@ const RPC_TIMEOUT_MS = 7000;
 
 type StatusKind = "info" | "success" | "error";
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function isConnectionLostError(error: unknown) {
+  const message = errorMessage(error, "").toLowerCase();
+  return message.includes("device has been lost") ||
+    message.includes("gatt server is disconnected") ||
+    message.includes("connection is no longer available");
+}
+
 type NumericField = keyof Pick<
   Iqs9151Config,
   | "resolutionX"
@@ -170,6 +181,7 @@ const demoConfig: Iqs9151Config = {
 
 function App() {
   const [demoMode, setDemoMode] = useState(false);
+  const [connectionNotice, setConnectionNotice] = useState("");
 
   return (
     <div className="app-shell">
@@ -187,14 +199,21 @@ function App() {
           <>
             <section className="panel connection">
               <h2>Connection</h2>
+              {connectionNotice && <p className="warning">{connectionNotice}</p>}
               {isLoading && <p>Connecting...</p>}
               {error && <p className="error">{error}</p>}
               {!isLoading && (
                 <div className="actions">
-                  <button className="primary" onClick={() => connect(gattConnect)}>
+                  <button className="primary" onClick={() => {
+                    setConnectionNotice("");
+                    void connect(gattConnect);
+                  }}>
                     Connect Bluetooth
                   </button>
-                  <button className="secondary" onClick={() => connect(serialConnect)}>
+                  <button className="secondary" onClick={() => {
+                    setConnectionNotice("");
+                    void connect(serialConnect);
+                  }}>
                     Connect Serial
                   </button>
                 </div>
@@ -214,7 +233,13 @@ function App() {
                 Disconnect
               </button>
             </section>
-            <TuningPanel demoMode={demoMode} />
+            <TuningPanel
+              demoMode={demoMode}
+              onConnectionLost={(message) => {
+                setConnectionNotice(message);
+                disconnect();
+              }}
+            />
           </>
         )}
       />
@@ -222,7 +247,13 @@ function App() {
   );
 }
 
-function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
+function TuningPanel({
+  demoMode = false,
+  onConnectionLost,
+}: {
+  demoMode?: boolean;
+  onConnectionLost?: (message: string) => void;
+}) {
   const zmkApp = useContext(ZMKAppContext);
   const [config, setConfig] = useState<Iqs9151Config | null>(demoMode ? demoConfig : null);
   const [status, setStatus] = useState(demoMode ? "Demo config loaded" : "");
@@ -276,6 +307,15 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
     return response;
   };
 
+  const handleOperationError = (error: unknown, fallback: string) => {
+    if (isConnectionLostError(error)) {
+      onConnectionLost?.("The device disconnected. Reconnect after flashing or restarting the keyboard.");
+      return;
+    }
+
+    setStatusMessage(errorMessage(error, fallback), "error");
+  };
+
   const loadConfig = async () => {
     if (demoMode) {
       setConfig(demoConfig);
@@ -292,7 +332,7 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
       setConfig(loadedConfig);
       setStatusMessage("Loaded current IQS9151 config", "success");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Failed to load config", "error");
+      handleOperationError(error, "Failed to load config");
     } finally {
       finishOperation();
     }
@@ -314,7 +354,7 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
       setConfig(appliedConfig);
       setStatusMessage("Applied IQS9151 config", "success");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Failed to apply config", "error");
+      handleOperationError(error, "Failed to apply config");
     } finally {
       finishOperation();
     }
@@ -336,7 +376,7 @@ function TuningPanel({ demoMode = false }: { demoMode?: boolean }) {
       setConfig(resetConfig);
       setStatusMessage("Reset IQS9151 config to firmware defaults", "success");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Failed to reset config", "error");
+      handleOperationError(error, "Failed to reset config");
     } finally {
       finishOperation();
     }
