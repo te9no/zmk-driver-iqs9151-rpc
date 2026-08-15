@@ -16,6 +16,7 @@ target_sources(app PRIVATE
 
 target_include_directories(app PRIVATE
     ../../drivers/input
+    ../../include
 )
 
 target_compile_definitions(app PRIVATE

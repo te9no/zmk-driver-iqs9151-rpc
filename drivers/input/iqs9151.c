@@ -32,7 +32,6 @@ LOG_MODULE_REGISTER(iqs9151, CONFIG_INPUT_IQS9151_LOG_LEVEL);
 #define IQS9151_ATI_POLL_INTERVAL_MS 10
 #define IQS9151_PRODUCT_NUMBER_RETRIES 5
 #define IQS9151_PRODUCT_NUMBER_RETRY_DELAY_MS 50
-#define IQS9151_WORK_DRAIN_MAX_FRAMES 8
 #define IQS9151_KEY_REPORT_TIMEOUT K_MSEC(CONFIG_INPUT_IQS9151_KEY_REPORT_TIMEOUT_MS)
 #define INERTIA_FP_SHIFT 8
 #define EMA_FP_SHIFT INERTIA_FP_SHIFT
@@ -2443,31 +2442,20 @@ static void iqs9151_work_cb(struct k_work *work) {
     struct iqs9151_data *data = CONTAINER_OF(work, struct iqs9151_data, work);
     const struct device *dev = data->dev;
     const struct iqs9151_config *cfg = dev->config;
+    struct iqs9151_frame frame;
+    int ret;
+    const int64_t now_ms = k_uptime_get();
 
-    for (uint8_t i = 0U; i < IQS9151_WORK_DRAIN_MAX_FRAMES; i++) {
-        struct iqs9151_frame frame;
-        int ret;
-        const int64_t now_ms = k_uptime_get();
-
-        if (i > 0U && !iqs9151_irq_is_active(cfg)) {
-            break;
-        }
-
-        ret = iqs9151_read_frame(cfg, &frame);
-        if (ret != 0) {
-            LOG_ERR("frame read failed (%d)", ret);
-            return;
-        }
-
-        const bool will_process = iqs9151_frame_should_process(data, &frame);
-        iqs9151_log_frame("irq", &frame, will_process);
-        if (will_process) {
-            iqs9151_process_frame(data, &frame, now_ms);
-        }
+    ret = iqs9151_read_frame(cfg, &frame);
+    if (ret != 0) {
+        LOG_ERR("frame read failed (%d)", ret);
+        return;
     }
 
-    if (iqs9151_irq_is_active(cfg)) {
-        LOG_DBG("DR still active after draining %u frames", IQS9151_WORK_DRAIN_MAX_FRAMES);
+    const bool will_process = iqs9151_frame_should_process(data, &frame);
+    iqs9151_log_frame("irq", &frame, will_process);
+    if (will_process) {
+        iqs9151_process_frame(data, &frame, now_ms);
     }
 }
 
